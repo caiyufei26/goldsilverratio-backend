@@ -3,6 +3,7 @@ package com.goldsilverratio.entity;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -15,5 +16,7 @@ public class GoldSilverRatio {
     private BigDecimal goldPrice;
     private BigDecimal silverPrice;
     private BigDecimal ratio;
+    /** 数据日期（业务日期），列表展示用 */
+    private LocalDate recordDate;
     private LocalDateTime recordTime;
 }

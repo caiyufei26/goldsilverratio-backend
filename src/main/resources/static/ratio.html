@@ -67,7 +67,9 @@
     td.value-gold { color: #f0c14b; }
     td.value-silver { color: #c0c0c0; }
     .empty-tip { color: #666; padding: 24px; text-align: center; }
+    .chart-wrap { position: relative; height: 220px; margin-top: 16px; margin-bottom: 16px; }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
   <div class="container">
@@ -89,6 +91,9 @@
       <h2>每日金银比</h2>
       <p class="hint">已同步到服务器的每日金价、银价与金银比。</p>
       <button type="button" class="btn" id="btnRefreshList">刷新列表</button>
+      <div class="chart-wrap">
+        <canvas id="ratioChart"></canvas>
+      </div>
       <div class="table-wrap">
         <table id="ratioTable">
           <thead>
@@ -211,6 +216,56 @@
       var btnRefreshList = document.getElementById('btnRefreshList');
       var ratioTableBody = document.getElementById('ratioTableBody');
       var listStatus = document.getElementById('listStatus');
+      var ratioChartInstance = null;
+
+      function updateChart(list) {
+        if (!window.Chart) return;
+        var ctx = document.getElementById('ratioChart');
+        if (!ctx) return;
+        var sorted = list.slice().sort(function (a, b) {
+          return (a.recordDate || '').localeCompare(b.recordDate || '');
+        });
+        var labels = sorted.map(function (r) { return r.recordDate || ''; });
+        var values = sorted.map(function (r) {
+          var v = parseFloat(r.ratio);
+          return isNaN(v) ? null : v;
+        });
+        if (ratioChartInstance) {
+          ratioChartInstance.data.labels = labels;
+          ratioChartInstance.data.datasets[0].data = values;
+          ratioChartInstance.update();
+          return;
+        }
+        ratioChartInstance = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: '金银比',
+              data: values,
+              borderColor: 'rgba(240, 193, 75, 0.9)',
+              backgroundColor: 'rgba(240, 193, 75, 0.1)',
+              fill: true,
+              tension: 0.2
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: {
+                grid: { color: 'rgba(255,255,255,0.06)' },
+                ticks: { color: '#a0a0a0', maxRotation: 45 }
+              },
+              y: {
+                grid: { color: 'rgba(255,255,255,0.06)' },
+                ticks: { color: '#a0a0a0' }
+              }
+            }
+          }
+        });
+      }
 
       function loadRatioList() {
         listStatus.textContent = '加载中…';
@@ -223,6 +278,7 @@
             var list = (result && result.data) ? result.data : [];
             if (list.length === 0) {
               ratioTableBody.innerHTML = '<tr><td colspan="4" class="empty-tip">暂无数据，请先同步</td></tr>';
+              updateChart([]);
               return;
             }
             ratioTableBody.innerHTML = list.map(function (row) {
@@ -232,11 +288,13 @@
               var ratio = formatNum(row.ratio);
               return '<tr><td>' + date + '</td><td class="value-gold">' + gold + '</td><td class="value-silver">' + silver + '</td><td>' + ratio + '</td></tr>';
             }).join('');
+            updateChart(list);
           })
           .catch(function (err) {
             listStatus.textContent = '加载失败：' + (err.message || '网络错误');
             listStatus.className = 'status error';
             ratioTableBody.innerHTML = '';
+            updateChart([]);
           });
       }
 

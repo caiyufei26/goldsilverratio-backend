@@ -4,19 +4,23 @@
 <mapper namespace="com.goldsilverratio.mapper.GoldSilverRatioMapper">
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO gold_silver_ratio (gold_price, silver_price, ratio, record_time)
-        VALUES (#{goldPrice}, #{silverPrice}, #{ratio}, #{recordTime})
+        INSERT INTO gold_silver_ratio (gold_price, silver_price, ratio, record_date, record_time)
+        VALUES (
+            #{goldPrice}, #{silverPrice}, #{ratio}, #{recordDate},
+            <if test="recordTime != null">#{recordTime}</if>
+            <if test="recordTime == null">CURRENT_TIMESTAMP</if>
+        )
     </insert>
 
     <select id="selectLatest" resultType="com.goldsilverratio.entity.GoldSilverRatio">
-        SELECT id, gold_price, silver_price, ratio, record_time
+        SELECT id, gold_price, silver_price, ratio, record_date AS recordDate, record_time
         FROM gold_silver_ratio
         ORDER BY record_time DESC
         LIMIT 1
     </select>
 
     <select id="selectPage" resultType="com.goldsilverratio.entity.GoldSilverRatio">
-        SELECT id, gold_price, silver_price, ratio, record_time
+        SELECT id, gold_price, silver_price, ratio, record_date AS recordDate, record_time
         FROM gold_silver_ratio
         ORDER BY record_time DESC
         LIMIT #{offset}, #{size}
@@ -24,6 +28,6 @@
 
     <delete id="deleteByDate">
         DELETE FROM gold_silver_ratio
-        WHERE DATE_FORMAT(record_time, '%Y%m%d') = #{dateStr}
+        WHERE record_date = STR_TO_DATE(#{dateStr}, '%Y%m%d')
     </delete>
 </mapper>

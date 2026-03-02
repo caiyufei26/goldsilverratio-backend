@@ -67,6 +67,22 @@
       border-color: rgba(125, 211, 252, 0.55);
       background: rgba(125, 211, 252, 0.08);
     }
+    .card-link.silver {
+      border-color: rgba(192, 192, 192, 0.35);
+      color: #c0c0c0;
+    }
+    .card-link.silver:hover {
+      border-color: rgba(192, 192, 192, 0.55);
+      background: rgba(192, 192, 192, 0.08);
+    }
+    .card-link.cftc {
+      border-color: rgba(34, 197, 94, 0.35);
+      color: #22c55e;
+    }
+    .card-link.cftc:hover {
+      border-color: rgba(34, 197, 94, 0.55);
+      background: rgba(34, 197, 94, 0.08);
+    }
     .card-link .icon {
       font-size: 2rem;
       margin-bottom: 8px;
@@ -98,6 +114,16 @@
         <span class="icon">&#x24;</span>
         <span class="title">美元指数</span>
         <span class="desc">每日收盘价 · 手动录入或从 FRED 获取，查看历史列表</span>
+      </a>
+      <a class="card-link silver" href="/silver-inventory.html">
+        <span class="icon">&#x2728;</span>
+        <span class="title">上期所白银库存</span>
+        <span class="desc">每日仓单库存 · 手动录入，查看较前日变动</span>
+      </a>
+      <a class="card-link cftc" href="/cftc-cot.html">
+        <span class="icon">&#x1F4CA;</span>
+        <span class="title">CFTC COT 持仓报告</span>
+        <span class="desc">总持仓、基金多空、商业多空、交易商数 · 较上周变动</span>
       </a>
     </nav>
   </div>

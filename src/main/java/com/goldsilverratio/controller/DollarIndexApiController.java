@@ -52,25 +52,37 @@ public class DollarIndexApiController {
     }
 
     /**
-     * 分页列表，按日期倒序。返回 data: [{ recordDate, closePrice }]
+     * 列表。若传 year、month 则按该月筛选；否则分页全量。
+     * 返回 data: [{ recordDate, closePrice }]
      */
     @GetMapping("/list")
     public Result<List<Map<String, Object>>> list(
             @RequestParam(value = "page", defaultValue = "1") int page,
-            @RequestParam(value = "size", defaultValue = "100") int size) {
-        List<Map<String, Object>> data = dollarIndexApiService.listPage(page, size);
+            @RequestParam(value = "size", defaultValue = "100") int size,
+            @RequestParam(value = "year", required = false) Integer year,
+            @RequestParam(value = "month", required = false) Integer month) {
+        List<Map<String, Object>> data;
+        if (year != null && month != null) {
+            data = dollarIndexApiService.listByMonth(year, month);
+        } else {
+            data = dollarIndexApiService.listPage(page, size);
+        }
         return Result.ok(data);
     }
 
     /**
-     * 按月从 FRED 获取数据（预留）。
+     * 保存前端从 Yahoo 获取的批量数据。body: { data: [{ date, closePrice }] }。
      */
-    @GetMapping("/fetch-month")
-    public Result<String> fetchMonth(
-            @RequestParam("year") int year,
-            @RequestParam("month") int month) {
-        String message = dollarIndexApiService.fetchMonth(year, month);
-        return Result.ok(message);
+    @PostMapping("/save-from-yahoo")
+    public Result<String> saveFromYahoo(@RequestBody Map<String, Object> body) {
+        Object dataObj = body.get("data");
+        if (!(dataObj instanceof List)) {
+            return Result.fail(400, "缺少 data 数组");
+        }
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> data = (List<Map<String, Object>>) dataObj;
+        int count = dollarIndexApiService.saveBatchFromYahoo(data);
+        return Result.ok("已保存 " + count + " 条");
     }
 
     private static java.math.BigDecimal toBigDecimal(Object o) {

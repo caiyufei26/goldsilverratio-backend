@@ -4,8 +4,8 @@
 <mapper namespace="com.goldsilverratio.mapper.DollarIndexMapper">
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO dollar_index (record_date, close_price)
-        VALUES (#{recordDate}, #{closePrice})
+        INSERT INTO dollar_index (record_date, close_price, record_time)
+        VALUES (#{recordDate}, #{closePrice}, #{recordTime})
     </insert>
 
     <delete id="deleteByDate">
@@ -17,5 +17,12 @@
         FROM dollar_index
         ORDER BY record_date DESC
         LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="selectByMonth" resultType="com.goldsilverratio.entity.DollarIndex">
+        SELECT id, record_date AS recordDate, close_price AS closePrice
+        FROM dollar_index
+        WHERE YEAR(record_date) = #{year} AND MONTH(record_date) = #{month}
+        ORDER BY record_date DESC
     </select>
 </mapper>

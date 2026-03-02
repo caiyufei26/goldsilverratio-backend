@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -22,6 +23,8 @@ import java.util.Map;
 public class RatioApiServiceImpl implements RatioApiService {
 
     private static final DateTimeFormatter YYYYMMDD = DateTimeFormatter.ofPattern("yyyyMMdd");
+    /** 列表展示用：数据日期 yyyy-MM-dd */
+    private static final DateTimeFormatter RECORD_DATE_DISPLAY = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     private final GoldSilverRatioMapper goldSilverRatioMapper;
 
@@ -36,6 +39,7 @@ public class RatioApiServiceImpl implements RatioApiService {
             throw new IllegalArgumentException("gold/silver invalid");
         }
         BigDecimal ratio = gold.divide(silver, 4, RoundingMode.HALF_UP);
+        LocalDate recordDate = LocalDate.parse(dateStr, YYYYMMDD);
         LocalDateTime recordTime = LocalDateTime.parse(
                 dateStr + "000000",
                 DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
@@ -44,7 +48,11 @@ public class RatioApiServiceImpl implements RatioApiService {
         record.setGoldPrice(gold);
         record.setSilverPrice(silver);
         record.setRatio(ratio);
+        record.setRecordDate(recordDate);
         record.setRecordTime(recordTime);
+        if (record.getRecordTime() == null) {
+            record.setRecordTime(LocalDateTime.now());
+        }
         goldSilverRatioMapper.insert(record);
     }
 
@@ -57,7 +65,9 @@ public class RatioApiServiceImpl implements RatioApiService {
         for (GoldSilverRatio r : list) {
             Map<String, Object> row = new HashMap<>(4);
             row.put("recordDate",
-                    r.getRecordTime() == null ? "" : r.getRecordTime().format(YYYYMMDD));
+                    r.getRecordDate() == null
+                            ? (r.getRecordTime() == null ? "" : r.getRecordTime().format(RECORD_DATE_DISPLAY))
+                            : r.getRecordDate().format(RECORD_DATE_DISPLAY));
             row.put("goldPrice", r.getGoldPrice());
             row.put("silverPrice", r.getSilverPrice());
             row.put("ratio", r.getRatio());

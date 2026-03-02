@@ -27,4 +27,10 @@ public interface DollarIndexMapper {
      */
     List<DollarIndex> selectPage(@Param("offset") int offset,
                                  @Param("size") int size);
+
+    /**
+     * 按年月查询，record_date 在该月内，按日期倒序。
+     */
+    List<DollarIndex> selectByMonth(@Param("year") int year,
+                                    @Param("month") int month);
 }

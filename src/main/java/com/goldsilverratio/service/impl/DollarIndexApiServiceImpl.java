@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -21,6 +22,7 @@ import java.util.Map;
 public class DollarIndexApiServiceImpl implements DollarIndexApiService {
 
     private static final DateTimeFormatter YYYYMMDD = DateTimeFormatter.ofPattern("yyyyMMdd");
+    private static final DateTimeFormatter RECORD_DATE_DISPLAY = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     private final DollarIndexMapper dollarIndexMapper;
 
@@ -39,6 +41,7 @@ public class DollarIndexApiServiceImpl implements DollarIndexApiService {
         DollarIndex record = new DollarIndex();
         record.setRecordDate(recordDate);
         record.setClosePrice(closePrice);
+        record.setRecordTime(LocalDateTime.now());
         dollarIndexMapper.insert(record);
     }
 
@@ -51,7 +54,7 @@ public class DollarIndexApiServiceImpl implements DollarIndexApiService {
         for (DollarIndex r : list) {
             Map<String, Object> row = new HashMap<>(2);
             row.put("recordDate",
-                    r.getRecordDate() == null ? "" : r.getRecordDate().format(YYYYMMDD));
+                    r.getRecordDate() == null ? "" : r.getRecordDate().format(RECORD_DATE_DISPLAY));
             row.put("closePrice", r.getClosePrice());
             result.add(row);
         }
@@ -59,8 +62,57 @@ public class DollarIndexApiServiceImpl implements DollarIndexApiService {
     }
 
     @Override
-    public String fetchMonth(int year, int month) {
-        // 预留：调用 FRED API 获取该月数据并批量 saveByDate；无数据返回提示
-        return "该功能需配置 FRED API 后实现，当前请使用手动录入";
+    public List<Map<String, Object>> listByMonth(int year, int month) {
+        List<DollarIndex> list = dollarIndexMapper.selectByMonth(year, month);
+        List<Map<String, Object>> result = new ArrayList<>(list.size());
+        for (DollarIndex r : list) {
+            Map<String, Object> row = new HashMap<>(2);
+            row.put("recordDate",
+                    r.getRecordDate() == null ? "" : r.getRecordDate().format(RECORD_DATE_DISPLAY));
+            row.put("closePrice", r.getClosePrice());
+            result.add(row);
+        }
+        return result;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int saveBatchFromYahoo(List<Map<String, Object>> data) {
+        if (data == null || data.isEmpty()) {
+            return 0;
+        }
+        int count = 0;
+        for (Map<String, Object> row : data) {
+            Object d = row.get("date");
+            Object c = row.get("closePrice");
+            if (d == null || !(d instanceof String)) {
+                continue;
+            }
+            String dateStr = (String) d;
+            if (dateStr.length() != 8) {
+                continue;
+            }
+            BigDecimal closePrice = toBigDecimal(c);
+            if (closePrice == null) {
+                continue;
+            }
+            saveByDate(dateStr, closePrice);
+            count++;
+        }
+        return count;
+    }
+
+    private static BigDecimal toBigDecimal(Object o) {
+        if (o == null) {
+            return null;
+        }
+        if (o instanceof Number) {
+            return BigDecimal.valueOf(((Number) o).doubleValue());
+        }
+        try {
+            return new BigDecimal(o.toString().trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }

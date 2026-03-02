@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.goldsilverratio.mapper.DollarIndexMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dollar_index (record_date, close_price)
+        VALUES (#{recordDate}, #{closePrice})
+    </insert>
+
+    <delete id="deleteByDate">
+        DELETE FROM dollar_index WHERE record_date = #{recordDate}
+    </delete>
+
+    <select id="selectPage" resultType="com.goldsilverratio.entity.DollarIndex">
+        SELECT id, record_date AS recordDate, close_price AS closePrice
+        FROM dollar_index
+        ORDER BY record_date DESC
+        LIMIT #{offset}, #{size}
+    </select>
+</mapper>

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>首页</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      color: #e8e8e8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .home {
+      text-align: center;
+      padding: 48px 24px;
+      max-width: 480px;
+    }
+    .home h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: rgba(255,255,255,0.9);
+      margin: 0 0 28px 0;
+      letter-spacing: 0.02em;
+    }
+    .nav-links {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .card-link {
+      display: block;
+      background: rgba(255,255,255,0.06);
+      border-radius: 16px;
+      padding: 24px 28px;
+      text-decoration: none;
+      font-size: 1.05rem;
+      font-weight: 500;
+      transition: background 0.2s, border-color 0.2s, transform 0.15s;
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+    .card-link:hover {
+      background: rgba(255,255,255,0.1);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(0,0,0,0.2);
+    }
+    .card-link.ratio {
+      border-color: rgba(240, 193, 75, 0.35);
+      color: #f0c14b;
+    }
+    .card-link.ratio:hover {
+      border-color: rgba(240, 193, 75, 0.55);
+      background: rgba(240, 193, 75, 0.08);
+    }
+    .card-link.dxy {
+      border-color: rgba(125, 211, 252, 0.35);
+      color: #7dd3fc;
+    }
+    .card-link.dxy:hover {
+      border-color: rgba(125, 211, 252, 0.55);
+      background: rgba(125, 211, 252, 0.08);
+    }
+    .card-link .icon {
+      font-size: 2rem;
+      margin-bottom: 8px;
+      line-height: 1;
+    }
+    .card-link .title {
+      display: block;
+      margin-bottom: 4px;
+      color: #fff;
+      font-weight: 600;
+    }
+    .card-link .desc {
+      font-size: 0.8rem;
+      color: rgba(255,255,255,0.5);
+      font-weight: 400;
+    }
+  </style>
+</head>
+<body>
+  <div class="home">
+    <h1>欢迎</h1>
+    <nav class="nav-links">
+      <a class="card-link ratio" href="/ratio.html">
+        <span class="icon">&#x2696;</span>
+        <span class="title">金银比</span>
+        <span class="desc">Gold / Silver Ratio · 按日期获取金价银价并查看每日金银比</span>
+      </a>
+      <a class="card-link dxy" href="/dollar-index.html">
+        <span class="icon">&#x24;</span>
+        <span class="title">美元指数</span>
+        <span class="desc">每日收盘价 · 手动录入或从 FRED 获取，查看历史列表</span>
+      </a>
+    </nav>
+  </div>
+</body>
+</html>

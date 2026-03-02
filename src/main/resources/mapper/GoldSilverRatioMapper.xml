@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.goldsilverratio.mapper.GoldSilverRatioMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO gold_silver_ratio (gold_price, silver_price, ratio, record_time)
+        VALUES (#{goldPrice}, #{silverPrice}, #{ratio}, #{recordTime})
+    </insert>
+
+    <select id="selectLatest" resultType="com.goldsilverratio.entity.GoldSilverRatio">
+        SELECT id, gold_price, silver_price, ratio, record_time
+        FROM gold_silver_ratio
+        ORDER BY record_time DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectPage" resultType="com.goldsilverratio.entity.GoldSilverRatio">
+        SELECT id, gold_price, silver_price, ratio, record_time
+        FROM gold_silver_ratio
+        ORDER BY record_time DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <delete id="deleteByDate">
+        DELETE FROM gold_silver_ratio
+        WHERE DATE_FORMAT(record_time, '%Y%m%d') = #{dateStr}
+    </delete>
+</mapper>

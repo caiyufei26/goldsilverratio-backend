@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>美元指数</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      margin: 0;
+      padding: 24px;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f3460 100%);
+      min-height: 100vh;
+      color: #e8e8e8;
+    }
+    .container { max-width: 560px; margin: 0 auto; }
+    h1 { text-align: center; font-size: 1.75rem; font-weight: 600; margin-bottom: 8px; color: #fff; }
+    .subtitle { text-align: center; color: #94a3b8; font-size: 0.9rem; margin-bottom: 32px; }
+    .card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 20px;
+    }
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      background: rgba(59, 130, 246, 0.2);
+      color: #60a5fa;
+      border: 1px solid rgba(59, 130, 246, 0.4);
+    }
+    .btn:hover { background: rgba(59, 130, 246, 0.3); }
+    .status { text-align: center; padding: 12px; color: #94a3b8; font-size: 0.9rem; }
+    .status.loading { color: #60a5fa; }
+    .status.error { color: #e57373; }
+    .card.feed h2 { font-size: 1rem; color: #94a3b8; margin: 0 0 16px 0; font-weight: 500; }
+    .hint { color: #64748b; font-size: 0.8rem; margin-bottom: 12px; line-height: 1.4; }
+    .btn.primary {
+      background: rgba(59, 130, 246, 0.25);
+      color: #60a5fa;
+      border-color: rgba(59, 130, 246, 0.5);
+      width: 100%;
+      margin-top: 8px;
+    }
+    .btn.primary:hover { background: rgba(59, 130, 246, 0.35); }
+    .form-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .form-row label { width: 100px; color: #94a3b8; font-size: 0.9rem; }
+    .form-row input, .form-row select {
+      flex: 1;
+      max-width: 160px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.06);
+      color: #fff;
+      font-size: 1rem;
+    }
+    .table-wrap { overflow-x: auto; margin-top: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    th { color: #94a3b8; font-weight: 500; }
+    td.value-close { color: #60a5fa; }
+    .empty-tip { color: #64748b; padding: 24px; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>美元指数</h1>
+    <p class="subtitle">每日收盘价 · DXY</p>
+
+    <div class="card feed">
+      <h2>手动录入</h2>
+      <p class="hint">输入日期与收盘价，保存到本地。</p>
+      <div class="form-row">
+        <label>数据日期</label>
+        <input type="date" id="inputFeedDate">
+      </div>
+      <div class="form-row">
+        <label>收盘价</label>
+        <input type="number" id="inputClosePrice" step="0.0001" placeholder="例：104.25">
+      </div>
+      <button type="button" class="btn primary" id="btnSaveFeed">保存该日收盘价</button>
+      <div class="status" id="feedStatus"></div>
+    </div>
+
+    <div class="card feed">
+      <h2>按月获取（FRED）</h2>
+      <p class="hint">选择年月后从 FRED 获取该月数据；若无数据则不保存。</p>
+      <div class="form-row">
+        <label>年份</label>
+        <select id="selectYear"></select>
+      </div>
+      <div class="form-row">
+        <label>月份</label>
+        <select id="selectMonth"></select>
+      </div>
+      <button type="button" class="btn primary" id="btnFetchMonth">获取该月数据</button>
+      <div class="status" id="fetchMonthStatus"></div>
+    </div>
+
+    <div class="card feed">
+      <h2>每日美元指数列表</h2>
+      <p class="hint">已保存的每日收盘价。</p>
+      <button type="button" class="btn" id="btnRefreshList">刷新列表</button>
+      <div class="table-wrap">
+        <table id="dxyTable">
+          <thead>
+            <tr>
+              <th>数据日期</th>
+              <th>收盘价</th>
+            </tr>
+          </thead>
+          <tbody id="dxyTableBody"></tbody>
+        </table>
+      </div>
+      <div class="status" id="listStatus"></div>
+    </div>
+
+    <p style="text-align:center;margin-top:24px;">
+      <a href="/" style="color:#64748b;font-size:0.9rem;">返回首页</a>
+    </p>
+  </div>
+
+  <script>
+    (function () {
+      function toYYYYMMDD(d) {
+        var y = d.getFullYear();
+        var m = (d.getMonth() + 1);
+        var day = d.getDate();
+        return '' + y + (m < 10 ? '0' : '') + m + (day < 10 ? '0' : '') + day;
+      }
+
+      var inputFeedDate = document.getElementById('inputFeedDate');
+      var inputClosePrice = document.getElementById('inputClosePrice');
+      var btnSaveFeed = document.getElementById('btnSaveFeed');
+      var feedStatus = document.getElementById('feedStatus');
+
+      (function setDefaultDate() {
+        var d = new Date();
+        var y = d.getFullYear();
+        var m = (d.getMonth() + 1);
+        var day = d.getDate();
+        inputFeedDate.value = y + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day;
+      })();
+
+      btnSaveFeed.addEventListener('click', function () {
+        var dateVal = (inputFeedDate.value || '').trim();
+        var closeVal = (inputClosePrice.value || '').trim();
+        if (!dateVal || !closeVal) {
+          feedStatus.textContent = '请填写日期和收盘价';
+          feedStatus.className = 'status error';
+          return;
+        }
+        var dateStr = dateVal.replace(/-/g, '');
+        var closePrice = parseFloat(closeVal);
+        if (isNaN(closePrice)) {
+          feedStatus.textContent = '收盘价格式不正确';
+          feedStatus.className = 'status error';
+          return;
+        }
+        btnSaveFeed.disabled = true;
+        feedStatus.textContent = '保存中…';
+        feedStatus.className = 'status loading';
+        fetch('/api/dollar-index/feed', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date: dateStr, closePrice: closePrice })
+        })
+          .then(function (res) { return res.json(); })
+          .then(function (result) {
+            btnSaveFeed.disabled = false;
+            if (result && result.code === 200) {
+              feedStatus.textContent = '已保存';
+              feedStatus.className = 'status';
+              loadDxyList();
+            } else {
+              feedStatus.textContent = (result && result.message) || '保存失败';
+              feedStatus.className = 'status error';
+            }
+          })
+          .catch(function (err) {
+            btnSaveFeed.disabled = false;
+            feedStatus.textContent = '请求失败：' + (err.message || '网络错误');
+            feedStatus.className = 'status error';
+          });
+      });
+
+      var selectYear = document.getElementById('selectYear');
+      var selectMonth = document.getElementById('selectMonth');
+      var btnFetchMonth = document.getElementById('btnFetchMonth');
+      var fetchMonthStatus = document.getElementById('fetchMonthStatus');
+
+      (function fillYearMonth() {
+        var y = new Date().getFullYear();
+        for (var i = y; i >= y - 10; i--) {
+          var opt = document.createElement('option');
+          opt.value = i;
+          opt.textContent = i + ' 年';
+          selectYear.appendChild(opt);
+        }
+        for (var j = 1; j <= 12; j++) {
+          var mopt = document.createElement('option');
+          mopt.value = j;
+          mopt.textContent = j + ' 月';
+          selectMonth.appendChild(mopt);
+        }
+        selectMonth.value = new Date().getMonth() + 1;
+      })();
+
+      btnFetchMonth.addEventListener('click', function () {
+        var year = selectYear.value;
+        var month = selectMonth.value;
+        if (!year || !month) {
+          fetchMonthStatus.textContent = '请选择年月';
+          fetchMonthStatus.className = 'status error';
+          return;
+        }
+        btnFetchMonth.disabled = true;
+        fetchMonthStatus.textContent = '正在从 FRED 获取…';
+        fetchMonthStatus.className = 'status loading';
+        fetch('/api/dollar-index/fetch-month?year=' + encodeURIComponent(year) + '&month=' + encodeURIComponent(month))
+          .then(function (res) { return res.json(); })
+          .then(function (result) {
+            btnFetchMonth.disabled = false;
+            if (result && result.code === 200) {
+              var msg = (result.message != null) ? result.message : '已处理';
+              fetchMonthStatus.textContent = msg;
+              fetchMonthStatus.className = 'status';
+              loadDxyList();
+            } else {
+              fetchMonthStatus.textContent = (result && result.message) || '获取失败或该月无数据';
+              fetchMonthStatus.className = 'status error';
+            }
+          })
+          .catch(function (err) {
+            btnFetchMonth.disabled = false;
+            fetchMonthStatus.textContent = '请求失败：' + (err.message || '网络错误');
+            fetchMonthStatus.className = 'status error';
+          });
+      });
+
+      function formatNum(n) {
+        if (n == null || n === '' || isNaN(n)) return '--';
+        return Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+      }
+
+      var btnRefreshList = document.getElementById('btnRefreshList');
+      var dxyTableBody = document.getElementById('dxyTableBody');
+      var listStatus = document.getElementById('listStatus');
+
+      function loadDxyList() {
+        listStatus.textContent = '加载中…';
+        listStatus.className = 'status loading';
+        fetch('/api/dollar-index/list')
+          .then(function (res) { return res.json(); })
+          .then(function (result) {
+            listStatus.textContent = '';
+            listStatus.className = 'status';
+            var list = (result && result.data) ? result.data : [];
+            if (list.length === 0) {
+              dxyTableBody.innerHTML = '<tr><td colspan="2" class="empty-tip">暂无数据</td></tr>';
+              return;
+            }
+            dxyTableBody.innerHTML = list.map(function (row) {
+              var date = row.recordDate || '--';
+              var close = formatNum(row.closePrice);
+              return '<tr><td>' + date + '</td><td class="value-close">' + close + '</td></tr>';
+            }).join('');
+          })
+          .catch(function (err) {
+            listStatus.textContent = '加载失败：' + (err.message || '网络错误');
+            listStatus.className = 'status error';
+            dxyTableBody.innerHTML = '';
+          });
+      }
+
+      btnRefreshList.addEventListener('click', loadDxyList);
+      loadDxyList();
+    })();
+  </script>
+</body>
+</html>

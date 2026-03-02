@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CFTC COT 持仓报告</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      margin: 0;
+      padding: 24px;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      min-height: 100vh;
+      color: #e8e8e8;
+    }
+    .container { max-width: 720px; margin: 0 auto; }
+    h1 { text-align: center; font-size: 1.75rem; font-weight: 600; margin-bottom: 8px; color: #fff; }
+    .subtitle { text-align: center; color: #94a3b8; font-size: 0.9rem; margin-bottom: 32px; }
+    .card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 20px;
+    }
+    .card.feed h2 { font-size: 1rem; color: #94a3b8; margin: 0 0 16px 0; font-weight: 500; }
+    .hint { color: #64748b; font-size: 0.8rem; margin-bottom: 12px; line-height: 1.4; }
+    .form-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+    .form-row label { width: 120px; color: #94a3b8; font-size: 0.9rem; flex-shrink: 0; }
+    .form-row input, .form-row select {
+      flex: 1;
+      min-width: 120px;
+      max-width: 160px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.06);
+      color: #fff;
+      font-size: 1rem;
+    }
+    .form-row-month { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .form-row-month label { color: #94a3b8; font-size: 0.9rem; flex-shrink: 0; }
+    .form-row-month input[type="month"] {
+      flex: 1;
+      max-width: 160px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.06);
+      color: #fff;
+      font-size: 1rem;
+    }
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      background: rgba(34, 197, 94, 0.2);
+      color: #22c55e;
+      border: 1px solid rgba(34, 197, 94, 0.4);
+    }
+    .btn:hover { background: rgba(34, 197, 94, 0.3); }
+    .btn.primary {
+      background: rgba(34, 197, 94, 0.25);
+      color: #22c55e;
+      border-color: rgba(34, 197, 94, 0.5);
+      width: 100%;
+      margin-top: 8px;
+    }
+    .btn.primary:hover { background: rgba(34, 197, 94, 0.35); }
+    .status { text-align: center; padding: 12px; color: #94a3b8; font-size: 0.9rem; }
+    .status.loading { color: #22c55e; }
+    .status.error { color: #e57373; }
+    .table-wrap { overflow-x: auto; margin-top: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    th { color: #94a3b8; font-weight: 500; white-space: nowrap; }
+    .change-up { color: #4ade80; }
+    .change-down { color: #f87171; }
+    .change-zero { color: #94a3b8; }
+    .empty-tip { color: #64748b; padding: 24px; text-align: center; }
+    .chart-wrap { position: relative; height: 220px; margin-top: 16px; margin-bottom: 16px; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>CFTC COT 持仓报告</h1>
+    <p class="subtitle">总持仓、基金多空、商业多空、交易商数 · 较上周变动</p>
+
+    <div class="card feed">
+      <h2>自动获取</h2>
+      <p class="hint">从 CFTC 官网抓取最新 COT 数据（黄金、白银），保存后自动刷新列表。</p>
+      <button type="button" class="btn primary" id="btnFetch">从 CFTC 获取</button>
+      <div class="status" id="feedStatus"></div>
+    </div>
+
+    <div class="card feed">
+      <h2>每日 COT 列表</h2>
+      <p class="hint">选择品种与年月查看，较上周：正数为增、负数为减。</p>
+      <div class="form-row-month">
+        <label>品种</label>
+        <select id="listCommodity">
+          <option value="GC">GC 黄金</option>
+          <option value="SI">SI 白银</option>
+        </select>
+      </div>
+      <div class="form-row-month">
+        <label>年月</label>
+        <input type="month" id="listMonthPicker">
+      </div>
+      <button type="button" class="btn" id="btnRefreshList">刷新列表</button>
+      <div class="chart-wrap">
+        <canvas id="cotChart"></canvas>
+      </div>
+      <div class="table-wrap">
+        <table id="cotTable">
+          <thead>
+            <tr>
+              <th>日期</th>
+              <th>总持仓</th>
+              <th>基金多头</th>
+              <th>基金空头</th>
+              <th>基金净</th>
+              <th>商业多头</th>
+              <th>商业空头</th>
+              <th>交易商数</th>
+            </tr>
+          </thead>
+          <tbody id="cotTableBody"></tbody>
+        </table>
+      </div>
+      <div class="status" id="listStatus"></div>
+    </div>
+
+    <p style="text-align:center;margin-top:24px;">
+      <a href="/" style="color:#64748b;font-size:0.9rem;">返回首页</a>
+    </p>
+  </div>
+
+  <script>
+    (function () {
+      var btnFetch = document.getElementById('btnFetch');
+      var feedStatus = document.getElementById('feedStatus');
+
+      btnFetch.addEventListener('click', function () {
+        btnFetch.disabled = true;
+        feedStatus.textContent = '正在从 CFTC 获取…';
+        feedStatus.className = 'status loading';
+        fetch('/api/cftc-cot/fetch')
+          .then(function (res) { return res.json(); })
+          .then(function (result) {
+            btnFetch.disabled = false;
+            if (result && result.code === 200) {
+              var saved = (result.data && result.data.saved) || 0;
+              feedStatus.textContent = '已保存 ' + saved + ' 条';
+              feedStatus.className = 'status';
+              loadList();
+            } else {
+              feedStatus.textContent = (result && result.message) || '获取失败';
+              feedStatus.className = 'status error';
+            }
+          })
+          .catch(function (err) {
+            btnFetch.disabled = false;
+            feedStatus.textContent = '请求失败：' + (err.message || '网络错误');
+            feedStatus.className = 'status error';
+          });
+      });
+
+      function formatNum(n) {
+        if (n == null || n === '' || isNaN(n)) return '--';
+        return Number(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+      }
+
+      function formatChange(change) {
+        if (change == null || (typeof change === 'number' && isNaN(change))) return '--';
+        var n = Number(change);
+        if (n > 0) return '+' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+        return n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+      }
+
+      function changeClass(change) {
+        if (change == null || (typeof change === 'number' && isNaN(change))) return 'change-zero';
+        var n = Number(change);
+        if (n > 0) return 'change-up';
+        if (n < 0) return 'change-down';
+        return 'change-zero';
+      }
+
+      function renderCell(val, change) {
+        var v = formatNum(val);
+        var c = formatChange(change);
+        var cls = changeClass(change);
+        return '<span>' + v + '</span><br><small class="' + cls + '">' + c + '</small>';
+      }
+
+      var listCommodity = document.getElementById('listCommodity');
+      var listMonthPicker = document.getElementById('listMonthPicker');
+      var btnRefreshList = document.getElementById('btnRefreshList');
+      var cotTableBody = document.getElementById('cotTableBody');
+      var listStatus = document.getElementById('listStatus');
+      var cotChartInstance = null;
+
+      (function setDefaultListMonth() {
+        var d = new Date();
+        listMonthPicker.value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+      })();
+
+      listCommodity.addEventListener('change', loadList);
+      listMonthPicker.addEventListener('change', loadList);
+
+      function updateChart(list) {
+        if (!window.Chart) return;
+        var ctx = document.getElementById('cotChart');
+        if (!ctx) return;
+        var sorted = list.slice().sort(function (a, b) {
+          return (a.recordDate || '').localeCompare(b.recordDate || '');
+        });
+        var labels = sorted.map(function (r) { return r.recordDate || ''; });
+        var values = sorted.map(function (r) {
+          var v = parseFloat(r.fundNet);
+          return isNaN(v) ? null : v;
+        });
+        if (cotChartInstance) {
+          cotChartInstance.data.labels = labels;
+          cotChartInstance.data.datasets[0].data = values;
+          cotChartInstance.update();
+          return;
+        }
+        cotChartInstance = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: '基金净持仓',
+              data: values,
+              borderColor: 'rgba(34, 197, 94, 0.9)',
+              backgroundColor: 'rgba(34, 197, 94, 0.1)',
+              fill: true,
+              tension: 0.2
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: {
+                grid: { color: 'rgba(255,255,255,0.06)' },
+                ticks: { color: '#94a3b8', maxRotation: 45 }
+              },
+              y: {
+                grid: { color: 'rgba(255,255,255,0.06)' },
+                ticks: { color: '#94a3b8' }
+              }
+            }
+          }
+        });
+      }
+
+      function loadList() {
+        listStatus.textContent = '加载中…';
+        listStatus.className = 'status loading';
+        var val = (listMonthPicker.value || '').trim();
+        var year = '';
+        var month = '';
+        if (val) {
+          var parts = val.split('-');
+          year = parts[0] || '';
+          month = parts[1] || '';
+        }
+        var url = '/api/cftc-cot/list?commodity=' + encodeURIComponent(listCommodity.value || 'GC');
+        if (year && month) url += '&year=' + year + '&month=' + month;
+        fetch(url)
+          .then(function (res) { return res.json(); })
+          .then(function (result) {
+            listStatus.textContent = '';
+            listStatus.className = 'status';
+            var list = (result && result.data) ? result.data : [];
+            if (list.length === 0) {
+              cotTableBody.innerHTML = '<tr><td colspan="8" class="empty-tip">暂无数据，请点击「从 CFTC 获取」</td></tr>';
+              updateChart([]);
+              return;
+            }
+            cotTableBody.innerHTML = list.map(function (row) {
+              var date = row.recordDate || '--';
+              var t0 = renderCell(row.totalOpenInterest, row.changeTotalOpenInterest);
+              var fl = renderCell(row.fundLong, row.changeFundLong);
+              var fs = renderCell(row.fundShort, row.changeFundShort);
+              var fn = renderCell(row.fundNet, row.changeFundNet);
+              var cl = renderCell(row.commercialLong, row.changeCommercialLong);
+              var cs = renderCell(row.commercialShort, row.changeCommercialShort);
+              var rt = renderCell(row.reportableTraders, row.changeReportableTraders);
+              return '<tr><td>' + date + '</td><td>' + t0 + '</td><td>' + fl + '</td><td>' + fs + '</td><td>' + fn + '</td><td>' + cl + '</td><td>' + cs + '</td><td>' + rt + '</td></tr>';
+            }).join('');
+            updateChart(list);
+          })
+          .catch(function (err) {
+            listStatus.textContent = '加载失败：' + (err.message || '网络错误');
+            listStatus.className = 'status error';
+            cotTableBody.innerHTML = '';
+            updateChart([]);
+          });
+      }
+
+      btnRefreshList.addEventListener('click', loadList);
+      loadList();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>上期所白银库存</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      margin: 0;
+      padding: 24px;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      min-height: 100vh;
+      color: #e8e8e8;
+    }
+    .container { max-width: 560px; margin: 0 auto; }
+    h1 { text-align: center; font-size: 1.75rem; font-weight: 600; margin-bottom: 8px; color: #fff; }
+    .subtitle { text-align: center; color: #94a3b8; font-size: 0.9rem; margin-bottom: 32px; }
+    .card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 20px;
+    }
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      background: rgba(192, 192, 192, 0.2);
+      color: #c0c0c0;
+      border: 1px solid rgba(192, 192, 192, 0.4);
+    }
+    .btn:hover { background: rgba(192, 192, 192, 0.3); }
+    .status { text-align: center; padding: 12px; color: #94a3b8; font-size: 0.9rem; }
+    .status.loading { color: #c0c0c0; }
+    .status.error { color: #e57373; }
+    .card.feed h2 { font-size: 1rem; color: #94a3b8; margin: 0 0 16px 0; font-weight: 500; }
+    .hint { color: #64748b; font-size: 0.8rem; margin-bottom: 12px; line-height: 1.4; }
+    .btn.primary {
+      background: rgba(192, 192, 192, 0.25);
+      color: #e8e8e8;
+      border-color: rgba(192, 192, 192, 0.5);
+      width: 100%;
+      margin-top: 8px;
+    }
+    .btn.primary:hover { background: rgba(192, 192, 192, 0.35); }
+    .form-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .form-row label { width: 100px; color: #94a3b8; font-size: 0.9rem; }
+    .form-row input {
+      flex: 1;
+      max-width: 160px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.06);
+      color: #fff;
+      font-size: 1rem;
+    }
+    .form-row-month {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .form-row-month label { color: #94a3b8; font-size: 0.9rem; flex-shrink: 0; }
+    .form-row-month input[type="month"] {
+      flex: 1;
+      max-width: 160px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.06);
+      color: #fff;
+      font-size: 1rem;
+    }
+    .table-wrap { overflow-x: auto; margin-top: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    th { color: #94a3b8; font-weight: 500; }
+    td.value-inventory { color: #c0c0c0; }
+    td.change-up { color: #4ade80; }
+    td.change-down { color: #f87171; }
+    td.change-zero { color: #94a3b8; }
+    .empty-tip { color: #64748b; padding: 24px; text-align: center; }
+    .chart-wrap { position: relative; height: 220px; margin-top: 16px; margin-bottom: 16px; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>上期所白银库存</h1>
+    <p class="subtitle">每日仓单库存 · 千克，较前日变动</p>
+
+    <div class="card feed">
+      <h2>从上期所获取</h2>
+      <p class="hint">解析上期所仓单日报页面，获取白银库存并保存。仅交易日有数据。</p>
+      <div class="form-row-month">
+        <label>按月</label>
+        <input type="month" id="fetchMonthPicker">
+      </div>
+      <button type="button" class="btn primary" id="btnFetchMonth">获取该月数据</button>
+      <div class="status" id="fetchStatus"></div>
+    </div>
+
+    <div class="card feed">
+      <h2>每日白银库存列表</h2>
+      <p class="hint">选择年月查看该月数据，图表与列表同步切换。较前日：正数为增、负数为减。</p>
+      <div class="form-row-month">
+        <label>年月</label>
+        <input type="month" id="listMonthPicker">
+      </div>
+      <button type="button" class="btn" id="btnRefreshList">刷新列表</button>
+      <div class="chart-wrap">
+        <canvas id="inventoryChart"></canvas>
+      </div>
+      <div class="table-wrap">
+        <table id="inventoryTable">
+          <thead>
+            <tr>
+              <th>数据日期</th>
+              <th>库存(kg)</th>
+              <th>较前日</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="inventoryTableBody"></tbody>
+        </table>
+      </div>
+      <div class="status" id="listStatus"></div>
+    </div>
+
+    <p style="text-align:center;margin-top:24px;">
+      <a href="/" style="color:#64748b;font-size:0.9rem;">返回首页</a>
+    </p>
+  </div>
+
+  <script>
+    (function () {
+      var fetchMonthPicker = document.getElementById('fetchMonthPicker');
+      var btnFetchMonth = document.getElementById('btnFetchMonth');
+      var fetchStatus = document.getElementById('fetchStatus');
+
+      (function setDefaultFetchMonth() {
+        var d = new Date();
+        fetchMonthPicker.value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+      })();
+
+      btnFetchMonth.addEventListener('click', function () {
+        var val = (fetchMonthPicker.value || '').trim();
+        if (!val) {
+          fetchStatus.textContent = '请选择年月';
+          fetchStatus.className = 'status error';
+          return;
+        }
+        var parts = val.split('-');
+        var year = parseInt(parts[0], 10);
+        var month = parseInt(parts[1], 10);
+        btnFetchMonth.disabled = true;
+        fetchStatus.textContent = '正在从上期所获取该月数据…';
+        fetchStatus.className = 'status loading';
+        fetch('/api/silver-inventory/fetch-month?year=' + year + '&month=' + month)
+          .then(function (res) { return res.json(); })
+          .then(function (result) {
+            btnFetchMonth.disabled = false;
+            if (result && result.code === 200) {
+              fetchStatus.textContent = result.message || '已处理';
+              fetchStatus.className = 'status';
+              listMonthPicker.value = fetchMonthPicker.value;
+              loadList();
+            } else {
+              fetchStatus.textContent = (result && result.message) || '获取失败';
+              fetchStatus.className = 'status error';
+            }
+          })
+          .catch(function (err) {
+            btnFetchMonth.disabled = false;
+            fetchStatus.textContent = '请求失败：' + (err.message || '网络错误');
+            fetchStatus.className = 'status error';
+          });
+      });
+
+      function formatNum(n) {
+        if (n == null || n === '' || isNaN(n)) return '--';
+        return Number(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+      }
+
+      function formatChange(change) {
+        if (change == null || change === '' || isNaN(change)) return '--';
+        var n = Number(change);
+        if (n > 0) return '+' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+        return n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+      }
+
+      function changeClass(change) {
+        if (change == null || isNaN(change)) return 'change-zero';
+        var n = Number(change);
+        if (n > 0) return 'change-up';
+        if (n < 0) return 'change-down';
+        return 'change-zero';
+      }
+
+      var listMonthPicker = document.getElementById('listMonthPicker');
+      var btnRefreshList = document.getElementById('btnRefreshList');
+      var inventoryTableBody = document.getElementById('inventoryTableBody');
+      var listStatus = document.getElementById('listStatus');
+      var inventoryChartInstance = null;
+
+      (function setDefaultListMonth() {
+        var d = new Date();
+        listMonthPicker.value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+      })();
+
+      listMonthPicker.addEventListener('change', loadList);
+
+      function updateChart(list) {
+        if (!window.Chart) return;
+        var ctx = document.getElementById('inventoryChart');
+        if (!ctx) return;
+        var sorted = list.slice().sort(function (a, b) {
+          return (a.recordDate || '').localeCompare(b.recordDate || '');
+        });
+        var labels = sorted.map(function (r) { return r.recordDate || ''; });
+        var values = sorted.map(function (r) {
+          var v = parseFloat(r.inventoryKg);
+          return isNaN(v) ? null : v;
+        });
+        if (inventoryChartInstance) {
+          inventoryChartInstance.data.labels = labels;
+          inventoryChartInstance.data.datasets[0].data = values;
+          inventoryChartInstance.update();
+          return;
+        }
+        inventoryChartInstance = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: '库存(kg)',
+              data: values,
+              borderColor: 'rgba(192, 192, 192, 0.9)',
+              backgroundColor: 'rgba(192, 192, 192, 0.1)',
+              fill: true,
+              tension: 0.2
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: {
+                grid: { color: 'rgba(255,255,255,0.06)' },
+                ticks: { color: '#94a3b8', maxRotation: 45 }
+              },
+              y: {
+                grid: { color: 'rgba(255,255,255,0.06)' },
+                ticks: { color: '#94a3b8' }
+              }
+            }
+          }
+        });
+      }
+
+      function loadList() {
+        listStatus.textContent = '加载中…';
+        listStatus.className = 'status loading';
+        var val = (listMonthPicker.value || '').trim();
+        var year = '';
+        var month = '';
+        if (val) {
+          var parts = val.split('-');
+          year = parts[0] || '';
+          month = parts[1] || '';
+        }
+        var url = '/api/silver-inventory/list?year=' + encodeURIComponent(year) + '&month=' + encodeURIComponent(month);
+        fetch(url)
+          .then(function (res) { return res.json(); })
+          .then(function (result) {
+            listStatus.textContent = '';
+            listStatus.className = 'status';
+            var list = (result && result.data) ? result.data : [];
+            if (list.length === 0) {
+              inventoryTableBody.innerHTML = '<tr><td colspan="4" class="empty-tip">暂无数据，请从上期所获取</td></tr>';
+              updateChart([]);
+              return;
+            }
+            inventoryTableBody.innerHTML = list.map(function (row) {
+              var date = row.recordDate || '--';
+              var inv = formatNum(row.inventoryKg);
+              var change = row.changeFromPrev;
+              var changeStr = formatChange(change);
+              var cls = changeClass(change);
+              var dateParam = (date || '').replace(/-/g, '');
+              var detailUrl = dateParam ? '/silver-inventory-detail.html?date=' + encodeURIComponent(date) : '#';
+              var detailLink = dateParam
+                ? '<a href="' + detailUrl + '" style="color:#94a3b8;font-size:0.85rem;">详情</a>'
+                : '';
+              return '<tr><td>' + date + '</td><td class="value-inventory">' + inv + '</td><td class="' + cls + '">' +
+                changeStr + '</td><td>' + detailLink + '</td></tr>';
+            }).join('');
+            updateChart(list);
+          })
+          .catch(function (err) {
+            listStatus.textContent = '加载失败：' + (err.message || '网络错误');
+            listStatus.className = 'status error';
+            inventoryTableBody.innerHTML = '';
+          });
+      }
+
+      btnRefreshList.addEventListener('click', loadList);
+      loadList();
+    })();
+  </script>
+</body>
+</html>

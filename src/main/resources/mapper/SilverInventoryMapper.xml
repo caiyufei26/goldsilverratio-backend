@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.goldsilverratio.mapper.SilverInventoryMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO silver_inventory (record_date, inventory_kg)
+        VALUES (#{recordDate}, #{inventoryKg})
+    </insert>
+
+    <delete id="deleteByDate">
+        DELETE FROM silver_inventory WHERE record_date = #{recordDate}
+    </delete>
+
+    <select id="selectPage" resultType="com.goldsilverratio.entity.SilverInventory">
+        SELECT id, record_date AS recordDate, inventory_kg AS inventoryKg
+        FROM silver_inventory
+        ORDER BY record_date DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="selectByMonth" resultType="com.goldsilverratio.entity.SilverInventory">
+        SELECT id, record_date AS recordDate, inventory_kg AS inventoryKg
+        FROM silver_inventory
+        WHERE YEAR(record_date) = #{year} AND MONTH(record_date) = #{month}
+        ORDER BY record_date DESC
+    </select>
+
+    <select id="selectPrevByDate" resultType="com.goldsilverratio.entity.SilverInventory">
+        SELECT id, record_date AS recordDate, inventory_kg AS inventoryKg
+        FROM silver_inventory
+        WHERE record_date &lt; #{recordDate}
+        ORDER BY record_date DESC
+        LIMIT 1
+    </select>
+</mapper>

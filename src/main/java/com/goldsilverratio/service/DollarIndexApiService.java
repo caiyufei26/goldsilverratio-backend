@@ -12,7 +12,7 @@ public interface DollarIndexApiService {
     /**
      * 保存指定日期的收盘价，同日期覆盖。
      *
-     * @param dateStr   日期 yyyyMMdd
+     * @param dateStr    日期 yyyyMMdd
      * @param closePrice 收盘价
      */
     void saveByDate(String dateStr, BigDecimal closePrice);
@@ -28,10 +28,11 @@ public interface DollarIndexApiService {
     List<Map<String, Object>> listByMonth(int year, int month);
 
     /**
-     * 批量保存前端从 Yahoo 获取的数据。body.data: [{ date, closePrice }]。
+     * 通过汇率 API 获取指定年月的 DXY 并保存。
      *
-     * @param data 数据列表
+     * @param year  年
+     * @param month 月
      * @return 保存条数
      */
-    int saveBatchFromYahoo(List<Map<String, Object>> data);
+    int fetchMonth(int year, int month);
 }

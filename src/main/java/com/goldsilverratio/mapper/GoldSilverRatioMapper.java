@@ -18,12 +18,12 @@ public interface GoldSilverRatioMapper {
     int insert(GoldSilverRatio record);
 
     /**
-     * 查询最新一条，按 record_time 倒序。
+     * 查询最新一条，按 record_date、record_time 倒序。
      */
     GoldSilverRatio selectLatest();
 
     /**
-     * 分页查询，按 record_time 倒序。
+     * 分页查询，按 record_date、record_time 倒序。
      */
     List<GoldSilverRatio> selectPage(@Param("offset") int offset,
                                      @Param("size") int size);

@@ -67,15 +67,22 @@
       margin-bottom: 16px;
     }
     .form-row-month label { color: #94a3b8; font-size: 0.9rem; flex-shrink: 0; }
-    .form-row-month input[type="month"] {
+    .form-row-month .month-select-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
       flex: 1;
-      max-width: 160px;
+      max-width: 200px;
+    }
+    .form-row-month .month-select-wrap select {
       padding: 10px 12px;
       border: 1px solid rgba(255,255,255,0.15);
       border-radius: 8px;
       background: rgba(255,255,255,0.06);
       color: #fff;
       font-size: 1rem;
+      -webkit-appearance: none;
+      appearance: none;
     }
     .table-wrap { overflow-x: auto; margin-top: 12px; }
     table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
@@ -87,6 +94,34 @@
     td.change-zero { color: #94a3b8; }
     .empty-tip { color: #64748b; padding: 24px; text-align: center; }
     .chart-wrap { position: relative; height: 220px; margin-top: 16px; margin-bottom: 16px; }
+    @media (max-width: 480px) {
+      body { padding: 12px 16px; }
+      .container { max-width: 100%; }
+      h1 { font-size: 1.35rem; margin-bottom: 6px; }
+      .subtitle { font-size: 0.85rem; margin-bottom: 20px; }
+      .card { padding: 16px; margin-bottom: 16px; border-radius: 12px; }
+      .form-row-month { flex-wrap: wrap; gap: 8px; }
+      .form-row-month label { width: 100%; margin-bottom: 0; }
+      .form-row-month .month-select-wrap { flex: 1; max-width: 100%; min-width: 0; }
+      .form-row-month .month-select-wrap { display: flex; gap: 8px; align-items: center; }
+      .form-row-month .month-select-wrap select {
+        flex: 1;
+        min-width: 0;
+        padding: 12px 10px;
+        font-size: 1rem;
+        border: 1px solid rgba(255,255,255,0.15);
+        border-radius: 8px;
+        background: rgba(255,255,255,0.06);
+        color: #fff;
+        -webkit-appearance: none;
+        appearance: none;
+      }
+      .btn { padding: 12px 20px; min-height: 44px; }
+      .btn.primary { margin-top: 12px; min-height: 44px; }
+      table { font-size: 0.8rem; }
+      th, td { padding: 8px 6px; }
+      .chart-wrap { height: 200px; margin-top: 12px; margin-bottom: 12px; }
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
@@ -100,7 +135,12 @@
       <p class="hint">解析上期所仓单日报页面，获取白银库存并保存。仅交易日有数据。</p>
       <div class="form-row-month">
         <label>按月</label>
-        <input type="month" id="fetchMonthPicker">
+        <div class="month-select-wrap">
+          <select id="fetchYear"></select>
+          <span style="color:#94a3b8;">年</span>
+          <select id="fetchMonth"></select>
+          <span style="color:#94a3b8;">月</span>
+        </div>
       </div>
       <button type="button" class="btn primary" id="btnFetchMonth">获取该月数据</button>
       <div class="status" id="fetchStatus"></div>
@@ -111,7 +151,12 @@
       <p class="hint">选择年月查看该月数据，图表与列表同步切换。较前日：正数为增、负数为减。</p>
       <div class="form-row-month">
         <label>年月</label>
-        <input type="month" id="listMonthPicker">
+        <div class="month-select-wrap">
+          <select id="listYear"></select>
+          <span style="color:#94a3b8;">年</span>
+          <select id="listMonth"></select>
+          <span style="color:#94a3b8;">月</span>
+        </div>
       </div>
       <button type="button" class="btn" id="btnRefreshList">刷新列表</button>
       <div class="chart-wrap">
@@ -140,25 +185,46 @@
 
   <script>
     (function () {
-      var fetchMonthPicker = document.getElementById('fetchMonthPicker');
+      var fetchYear = document.getElementById('fetchYear');
+      var fetchMonth = document.getElementById('fetchMonth');
+      var listYear = document.getElementById('listYear');
+      var listMonth = document.getElementById('listMonth');
       var btnFetchMonth = document.getElementById('btnFetchMonth');
       var fetchStatus = document.getElementById('fetchStatus');
 
+      function fillYearMonthSelects(yearEl, monthEl) {
+        var y = new Date().getFullYear();
+        var i;
+        for (i = y - 2; i <= y + 1; i++) {
+          var opt = document.createElement('option');
+          opt.value = i;
+          opt.textContent = i;
+          yearEl.appendChild(opt);
+        }
+        for (i = 1; i <= 12; i++) {
+          var mopt = document.createElement('option');
+          mopt.value = i;
+          mopt.textContent = i;
+          monthEl.appendChild(mopt);
+        }
+      }
+      fillYearMonthSelects(fetchYear, fetchMonth);
+      fillYearMonthSelects(listYear, listMonth);
+
       (function setDefaultFetchMonth() {
         var d = new Date();
-        fetchMonthPicker.value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        fetchYear.value = d.getFullYear();
+        fetchMonth.value = d.getMonth() + 1;
       })();
 
       btnFetchMonth.addEventListener('click', function () {
-        var val = (fetchMonthPicker.value || '').trim();
-        if (!val) {
+        var year = parseInt(fetchYear.value, 10);
+        var month = parseInt(fetchMonth.value, 10);
+        if (!year || !month) {
           fetchStatus.textContent = '请选择年月';
           fetchStatus.className = 'status error';
           return;
         }
-        var parts = val.split('-');
-        var year = parseInt(parts[0], 10);
-        var month = parseInt(parts[1], 10);
         btnFetchMonth.disabled = true;
         fetchStatus.textContent = '正在从上期所获取该月数据…';
         fetchStatus.className = 'status loading';
@@ -169,7 +235,8 @@
             if (result && result.code === 200) {
               fetchStatus.textContent = result.message || '已处理';
               fetchStatus.className = 'status';
-              listMonthPicker.value = fetchMonthPicker.value;
+              listYear.value = year;
+              listMonth.value = month;
               loadList();
             } else {
               fetchStatus.textContent = (result && result.message) || '获取失败';
@@ -203,7 +270,6 @@
         return 'change-zero';
       }
 
-      var listMonthPicker = document.getElementById('listMonthPicker');
       var btnRefreshList = document.getElementById('btnRefreshList');
       var inventoryTableBody = document.getElementById('inventoryTableBody');
       var listStatus = document.getElementById('listStatus');
@@ -211,10 +277,12 @@
 
       (function setDefaultListMonth() {
         var d = new Date();
-        listMonthPicker.value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        listYear.value = d.getFullYear();
+        listMonth.value = d.getMonth() + 1;
       })();
 
-      listMonthPicker.addEventListener('change', loadList);
+      listYear.addEventListener('change', loadList);
+      listMonth.addEventListener('change', loadList);
 
       function updateChart(list) {
         if (!window.Chart) return;
@@ -268,14 +336,8 @@
       function loadList() {
         listStatus.textContent = '加载中…';
         listStatus.className = 'status loading';
-        var val = (listMonthPicker.value || '').trim();
-        var year = '';
-        var month = '';
-        if (val) {
-          var parts = val.split('-');
-          year = parts[0] || '';
-          month = parts[1] || '';
-        }
+        var year = listYear.value || '';
+        var month = listMonth.value || '';
         var url = '/api/silver-inventory/list?year=' + encodeURIComponent(year) + '&month=' + encodeURIComponent(month);
         fetch(url)
           .then(function (res) { return res.json(); })

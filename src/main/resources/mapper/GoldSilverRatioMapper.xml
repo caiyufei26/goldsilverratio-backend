@@ -15,14 +15,14 @@
     <select id="selectLatest" resultType="com.goldsilverratio.entity.GoldSilverRatio">
         SELECT id, gold_price, silver_price, ratio, record_date AS recordDate, record_time
         FROM gold_silver_ratio
-        ORDER BY record_time DESC
+        ORDER BY record_date DESC, record_time DESC
         LIMIT 1
     </select>
 
     <select id="selectPage" resultType="com.goldsilverratio.entity.GoldSilverRatio">
         SELECT id, gold_price, silver_price, ratio, record_date AS recordDate, record_time
         FROM gold_silver_ratio
-        ORDER BY record_time DESC
+        ORDER BY record_date DESC, record_time DESC
         LIMIT #{offset}, #{size}
     </select>
 

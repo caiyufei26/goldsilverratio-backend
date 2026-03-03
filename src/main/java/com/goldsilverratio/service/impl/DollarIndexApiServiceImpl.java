@@ -3,6 +3,7 @@ package com.goldsilverratio.service.impl;
 import com.goldsilverratio.entity.DollarIndex;
 import com.goldsilverratio.mapper.DollarIndexMapper;
 import com.goldsilverratio.service.DollarIndexApiService;
+import com.goldsilverratio.service.DollarIndexFetcher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,9 +26,40 @@ public class DollarIndexApiServiceImpl implements DollarIndexApiService {
     private static final DateTimeFormatter RECORD_DATE_DISPLAY = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     private final DollarIndexMapper dollarIndexMapper;
+    private final DollarIndexFetcher dollarIndexFetcher;
 
-    public DollarIndexApiServiceImpl(DollarIndexMapper dollarIndexMapper) {
+    public DollarIndexApiServiceImpl(DollarIndexMapper dollarIndexMapper,
+                                    DollarIndexFetcher dollarIndexFetcher) {
         this.dollarIndexMapper = dollarIndexMapper;
+        this.dollarIndexFetcher = dollarIndexFetcher;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int fetchMonth(int year, int month) {
+        List<Map<String, Object>> data = dollarIndexFetcher.fetchMonth(year, month);
+        if (data == null || data.isEmpty()) {
+            return 0;
+        }
+        int count = 0;
+        for (Map<String, Object> row : data) {
+            Object d = row.get("date");
+            Object c = row.get("closePrice");
+            if (d == null || !(d instanceof String)) {
+                continue;
+            }
+            String dateStr = (String) d;
+            if (dateStr.length() != 8) {
+                continue;
+            }
+            BigDecimal closePrice = toBigDecimal(c);
+            if (closePrice == null) {
+                continue;
+            }
+            saveByDate(dateStr, closePrice);
+            count++;
+        }
+        return count;
     }
 
     @Override
@@ -73,33 +105,6 @@ public class DollarIndexApiServiceImpl implements DollarIndexApiService {
             result.add(row);
         }
         return result;
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public int saveBatchFromYahoo(List<Map<String, Object>> data) {
-        if (data == null || data.isEmpty()) {
-            return 0;
-        }
-        int count = 0;
-        for (Map<String, Object> row : data) {
-            Object d = row.get("date");
-            Object c = row.get("closePrice");
-            if (d == null || !(d instanceof String)) {
-                continue;
-            }
-            String dateStr = (String) d;
-            if (dateStr.length() != 8) {
-                continue;
-            }
-            BigDecimal closePrice = toBigDecimal(c);
-            if (closePrice == null) {
-                continue;
-            }
-            saveByDate(dateStr, closePrice);
-            count++;
-        }
-        return count;
     }
 
     private static BigDecimal toBigDecimal(Object o) {

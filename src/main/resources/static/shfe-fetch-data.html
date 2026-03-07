@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>数据同步</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      margin: 0;
+      padding: 24px;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      min-height: 100vh;
+      color: #e8e8e8;
+    }
+    .container { max-width: 520px; margin: 0 auto; }
+    h1 { text-align: center; font-size: 1.75rem; font-weight: 600; margin-bottom: 8px; color: #fff; }
+    .subtitle { text-align: center; color: #94a3b8; font-size: 0.9rem; margin-bottom: 32px; }
+    .card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 20px;
+    }
+    .card h2 { font-size: 1rem; color: #94a3b8; margin: 0 0 16px 0; font-weight: 500; }
+    .hint { color: #64748b; font-size: 0.8rem; margin-bottom: 16px; line-height: 1.5; }
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      background: rgba(20, 184, 166, 0.2);
+      color: #2dd4bf;
+      border: 1px solid rgba(20, 184, 166, 0.4);
+    }
+    .btn:hover { background: rgba(20, 184, 166, 0.3); }
+    .btn.primary {
+      background: rgba(20, 184, 166, 0.25);
+      color: #e8e8e8;
+      border-color: rgba(20, 184, 166, 0.5);
+      width: 100%;
+      margin-top: 8px;
+    }
+    .btn.primary:hover { background: rgba(20, 184, 166, 0.35); }
+    .btn.primary:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn + .btn { margin-top: 10px; }
+    .status { text-align: center; padding: 12px; color: #94a3b8; font-size: 0.9rem; white-space: pre-line; }
+    .status.loading { color: #2dd4bf; }
+    .status.error { color: #e57373; }
+    .form-row-month {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .form-row-month label { color: #94a3b8; font-size: 0.9rem; flex-shrink: 0; }
+    .form-row-month .month-select-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      max-width: 200px;
+    }
+    .form-row-month .month-select-wrap select {
+      padding: 10px 12px;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.06);
+      color: #fff;
+      font-size: 1rem;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    .form-row-month .month-select-wrap select option {
+      background: #1e293b;
+      color: #fff;
+    }
+    .links { margin-top: 20px; font-size: 0.85rem; color: #64748b; }
+    .links a { color: #94a3b8; margin-right: 12px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>数据同步</h1>
+    <p class="subtitle">库存 · 交易数据 · 美元指数 · 按月份同步 · 每日 17:30 自动执行本月</p>
+
+    <div class="card">
+      <h2>一键同步全部</h2>
+      <p class="hint">选择月份后同步该月的：上期所交易数据与库存（白银+燃油）、美元指数。默认本月。</p>
+      <div class="form-row-month">
+        <label>按月份</label>
+        <div class="month-select-wrap">
+          <select id="syncYear"></select><span>年</span>
+          <select id="syncMonth"></select><span>月</span>
+        </div>
+      </div>
+      <button type="button" class="btn primary" id="btnSyncAll">同步该月数据</button>
+      <div class="status" id="syncAllStatus"></div>
+    </div>
+
+    <p style="text-align:center;margin-top:24px;">
+      <a href="/" style="color:#64748b;font-size:0.9rem;">返回首页</a>
+    </p>
+    <p class="links" style="text-align:center;">
+      <a href="/ratio.html">金银比</a>
+      <a href="/dollar-index.html">美元指数</a>
+      <a href="/shfe-trade-daily.html">白银每日交易数据</a>
+      <a href="/shfe-trade-daily.html?product=fu">燃油每日交易数据</a>
+      <a href="/silver-inventory.html">白银库存</a>
+      <a href="/silver-inventory.html?product=fu">燃油库存</a>
+    </p>
+  </div>
+
+  <script>
+    (function () {
+      function populateYearMonth(yearSel, monthSel) {
+        var now = new Date();
+        var curYear = now.getFullYear();
+        var curMonth = now.getMonth() + 1;
+        for (var y = curYear; y >= curYear - 5; y--) {
+          var opt = document.createElement('option');
+          opt.value = y;
+          opt.textContent = y;
+          yearSel.appendChild(opt);
+        }
+        yearSel.value = curYear;
+        for (var m = 1; m <= 12; m++) {
+          var opt = document.createElement('option');
+          opt.value = m;
+          opt.textContent = m;
+          monthSel.appendChild(opt);
+        }
+        monthSel.value = curMonth;
+      }
+
+      var syncYear = document.getElementById('syncYear');
+      var syncMonth = document.getElementById('syncMonth');
+      var syncAllStatus = document.getElementById('syncAllStatus');
+      var btnSyncAll = document.getElementById('btnSyncAll');
+      populateYearMonth(syncYear, syncMonth);
+
+      btnSyncAll.addEventListener('click', function () {
+        var year = parseInt(syncYear.value, 10);
+        var month = parseInt(syncMonth.value, 10);
+
+        btnSyncAll.disabled = true;
+        syncAllStatus.textContent = '正在拉取该月交易数据…';
+        syncAllStatus.className = 'status loading';
+
+        function setResult(ok, text) {
+          btnSyncAll.disabled = false;
+          syncAllStatus.textContent = text;
+          syncAllStatus.className = 'status' + (ok ? '' : ' error');
+        }
+
+        fetch('/api/shfe-trade/fetch-month?year=' + year + '&month=' + month)
+          .then(function (r) { return r.json(); })
+          .then(function (tradeResult) {
+            var tradeOk = tradeResult && tradeResult.code === 200;
+            var tradeText = tradeOk ? (tradeResult.data || '已保存') : (tradeResult.message || '失败');
+            syncAllStatus.textContent = '交易数据: ' + tradeText + '\n正在拉取该月库存…';
+            return fetch('/api/silver-inventory/fetch-month?year=' + year + '&month=' + month)
+              .then(function (r2) { return r2.json(); })
+              .then(function (invResult) {
+                var invOk = invResult && invResult.code === 200;
+                var invText = invOk ? (invResult.data || invResult.message || '已保存') : (invResult.message || '失败');
+                syncAllStatus.textContent = '交易数据: ' + tradeText + '\n库存: ' + invText + '\n正在拉取该月美元指数…';
+                return fetch('/api/dollar-index/fetch-month?year=' + year + '&month=' + month)
+                  .then(function (r3) { return r3.json(); })
+                  .then(function (dxyResult) {
+                    var dxyOk = dxyResult && dxyResult.code === 200;
+                    var dxyText = dxyOk ? (dxyResult.data || '已保存') : (dxyResult.message || '失败');
+                    var allOk = tradeOk && invOk && dxyOk;
+                    setResult(allOk, '交易数据: ' + tradeText + '\n库存: ' + invText + '\n美元指数: ' + dxyText);
+                  });
+              });
+          })
+          .catch(function (err) {
+            setResult(false, '失败：' + (err.message || '网络错误'));
+          });
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -11,45 +11,66 @@
       margin: 0;
       padding: 0;
       min-height: 100vh;
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      background: linear-gradient(160deg, #0f172a 0%, #1e293b 40%, #0f3460 100%);
       color: #e8e8e8;
       display: flex;
       align-items: center;
       justify-content: center;
     }
     .home {
-      text-align: center;
-      padding: 48px 24px;
-      max-width: 480px;
+      padding: 40px 20px 56px;
+      max-width: 540px;
+      margin: 0 auto;
+      width: 100%;
     }
     .home h1 {
-      font-size: 1.5rem;
+      font-size: 1.75rem;
       font-weight: 600;
-      color: rgba(255,255,255,0.9);
-      margin: 0 0 28px 0;
-      letter-spacing: 0.02em;
+      color: #fff;
+      margin: 0 0 36px 0;
+      letter-spacing: 0.03em;
+      text-align: center;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+    .section {
+      margin-bottom: 24px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px;
+      padding: 20px 20px 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+    }
+    .section-title {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: rgba(255,255,255,0.45);
+      letter-spacing: 0.12em;
+      margin-bottom: 14px;
+      padding-left: 12px;
+      border-left: 3px solid rgba(255,255,255,0.25);
+      text-transform: uppercase;
     }
     .nav-links {
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 10px;
     }
     .card-link {
       display: block;
-      background: rgba(255,255,255,0.06);
-      border-radius: 16px;
-      padding: 24px 28px;
+      background: rgba(255,255,255,0.07);
+      border-radius: 14px;
+      padding: 20px 22px;
       text-decoration: none;
-      font-size: 1.05rem;
+      font-size: 1rem;
       font-weight: 500;
-      transition: background 0.2s, border-color 0.2s, transform 0.15s;
+      transition: background 0.2s, border-color 0.2s, transform 0.12s, box-shadow 0.2s;
       border: 1px solid rgba(255,255,255,0.1);
-      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
     }
     .card-link:hover {
-      background: rgba(255,255,255,0.1);
-      transform: translateY(-2px);
-      box-shadow: 0 8px 28px rgba(0,0,0,0.2);
+      background: rgba(255,255,255,0.11);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.15);
     }
     .card-link.ratio {
       border-color: rgba(240, 193, 75, 0.35);
@@ -83,44 +104,130 @@
       border-color: rgba(34, 197, 94, 0.55);
       background: rgba(34, 197, 94, 0.08);
     }
+    .card-link.shfe-trade {
+      border-color: rgba(251, 191, 36, 0.35);
+      color: #fbbf24;
+    }
+    .card-link.shfe-trade:hover {
+      border-color: rgba(251, 191, 36, 0.55);
+      background: rgba(251, 191, 36, 0.08);
+    }
+    .card-link.shfe-fuel {
+      border-color: rgba(249, 115, 22, 0.35);
+      color: #fb923c;
+    }
+    .card-link.shfe-fuel:hover {
+      border-color: rgba(249, 115, 22, 0.55);
+      background: rgba(249, 115, 22, 0.08);
+    }
+    .card-link.fuel-inv {
+      border-color: rgba(249, 115, 22, 0.35);
+      color: #fb923c;
+    }
+    .card-link.fuel-inv:hover {
+      border-color: rgba(249, 115, 22, 0.55);
+      background: rgba(249, 115, 22, 0.08);
+    }
+    .card-link.shfe-fetch {
+      border-color: rgba(20, 184, 166, 0.35);
+      color: #2dd4bf;
+    }
+    .card-link.shfe-fetch:hover {
+      border-color: rgba(20, 184, 166, 0.55);
+      background: rgba(20, 184, 166, 0.08);
+    }
     .card-link .icon {
-      font-size: 2rem;
-      margin-bottom: 8px;
+      font-size: 1.75rem;
+      margin-bottom: 6px;
       line-height: 1;
+      opacity: 0.95;
     }
     .card-link .title {
       display: block;
       margin-bottom: 4px;
       color: #fff;
       font-weight: 600;
+      font-size: 1.02rem;
     }
     .card-link .desc {
-      font-size: 0.8rem;
-      color: rgba(255,255,255,0.5);
+      font-size: 0.78rem;
+      color: rgba(255,255,255,0.48);
       font-weight: 400;
+      line-height: 1.4;
+    }
+    @media (max-width: 380px) {
+      .home { padding: 24px 16px 40px; }
+      .home h1 { font-size: 1.4rem; margin-bottom: 28px; }
+      .section { padding: 16px 14px 12px; border-radius: 16px; }
+      .card-link { padding: 16px 18px; }
     }
   </style>
 </head>
 <body>
   <div class="home">
     <h1>欢迎</h1>
-    <nav class="nav-links">
-      <a class="card-link ratio" href="/ratio.html">
-        <span class="icon">&#x2696;</span>
-        <span class="title">金银比</span>
-        <span class="desc">Gold / Silver Ratio · 按日期获取金价银价并查看每日金银比</span>
-      </a>
-      <a class="card-link dxy" href="/dollar-index.html">
-        <span class="icon">&#x24;</span>
-        <span class="title">美元指数</span>
-        <span class="desc">每日收盘价 · 手动录入或从 FRED 获取，查看历史列表</span>
-      </a>
-      <a class="card-link silver" href="/silver-inventory.html">
-        <span class="icon">&#x2728;</span>
-        <span class="title">上期所白银库存</span>
-        <span class="desc">每日仓单库存 · 手动录入，查看较前日变动</span>
-      </a>
-      <a class="card-link cftc" href="/cftc-cot.html" style="display: none;">
+
+    <section class="section">
+      <h2 class="section-title">白银</h2>
+      <nav class="nav-links">
+        <a class="card-link ratio" href="/ratio.html">
+          <span class="icon">&#x2696;</span>
+          <span class="title">金银比</span>
+          <span class="desc">Gold / Silver Ratio · 按日期获取金价银价并查看每日金银比</span>
+        </a>
+        <a class="card-link silver" href="/silver-inventory.html">
+          <span class="icon">&#x2728;</span>
+          <span class="title">上期所白银库存</span>
+          <span class="desc">每日仓单库存 · 查看较前日变动、分仓库详情</span>
+        </a>
+        <a class="card-link shfe-trade" href="/shfe-trade-daily.html">
+          <span class="icon">&#x1F4C8;</span>
+          <span class="title">白银每日交易数据</span>
+          <span class="desc">上期所白银(AG) · 成交量 · 持仓量 · 日增仓走势</span>
+        </a>
+      </nav>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">燃油</h2>
+      <nav class="nav-links">
+        <a class="card-link fuel-inv" href="/silver-inventory.html?product=fu">
+          <span class="icon">&#x26FD;</span>
+          <span class="title">上期所燃油库存</span>
+          <span class="desc">每日仓单库存 · 查看较前日变动、分仓库详情</span>
+        </a>
+        <a class="card-link shfe-fuel" href="/shfe-trade-daily.html?product=fu">
+          <span class="icon">&#x26FD;</span>
+          <span class="title">燃油每日交易数据</span>
+          <span class="desc">上期所燃料油(FU) · 成交量 · 持仓量 · 日增仓走势</span>
+        </a>
+      </nav>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">美元指数</h2>
+      <nav class="nav-links">
+        <a class="card-link dxy" href="/dollar-index.html">
+          <span class="icon">&#x24;</span>
+          <span class="title">美元指数</span>
+          <span class="desc">每日收盘价 · 查看历史列表与图表</span>
+        </a>
+      </nav>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">数据同步</h2>
+      <nav class="nav-links">
+        <a class="card-link shfe-fetch" href="/shfe-fetch-data.html">
+          <span class="icon">&#x21BB;</span>
+          <span class="title">数据同步</span>
+          <span class="desc">金银比、库存、交易数据 · 一键同步或按月考取 · 每日 17:30 自动执行</span>
+        </a>
+      </nav>
+    </section>
+
+    <nav class="nav-links" style="display: none;">
+      <a class="card-link cftc" href="/cftc-cot.html">
         <span class="icon">&#x1F4CA;</span>
         <span class="title">CFTC COT 持仓报告</span>
         <span class="desc">总持仓、基金多空、商业多空、交易商数 · 较上周变动</span>

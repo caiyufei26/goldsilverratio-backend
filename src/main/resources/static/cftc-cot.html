@@ -41,15 +41,26 @@
     }
     .form-row-month { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
     .form-row-month label { color: #94a3b8; font-size: 0.9rem; flex-shrink: 0; }
-    .form-row-month input[type="month"] {
+    .form-row-month .month-select-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
       flex: 1;
-      max-width: 160px;
+      max-width: 200px;
+    }
+    .form-row-month .month-select-wrap select {
       padding: 10px 12px;
       border: 1px solid rgba(255,255,255,0.15);
       border-radius: 8px;
       background: rgba(255,255,255,0.06);
       color: #fff;
       font-size: 1rem;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    .form-row-month .month-select-wrap select option {
+      background: #1e293b;
+      color: #fff;
     }
     .btn {
       padding: 12px 24px;
@@ -109,7 +120,10 @@
       </div>
       <div class="form-row-month">
         <label>年月</label>
-        <input type="month" id="listMonthPicker">
+        <div class="month-select-wrap">
+          <select id="listYear"></select><span>年</span>
+          <select id="listMonth"></select><span>月</span>
+        </div>
       </div>
       <button type="button" class="btn" id="btnRefreshList">刷新列表</button>
       <div class="chart-wrap">
@@ -198,19 +212,36 @@
       }
 
       var listCommodity = document.getElementById('listCommodity');
-      var listMonthPicker = document.getElementById('listMonthPicker');
+      var listYear = document.getElementById('listYear');
+      var listMonth = document.getElementById('listMonth');
       var btnRefreshList = document.getElementById('btnRefreshList');
       var cotTableBody = document.getElementById('cotTableBody');
       var listStatus = document.getElementById('listStatus');
       var cotChartInstance = null;
 
-      (function setDefaultListMonth() {
-        var d = new Date();
-        listMonthPicker.value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+      (function populateYearMonth() {
+        var now = new Date();
+        var curYear = now.getFullYear();
+        var curMonth = now.getMonth() + 1;
+        for (var y = curYear; y >= curYear - 5; y--) {
+          var opt = document.createElement('option');
+          opt.value = y;
+          opt.textContent = y;
+          listYear.appendChild(opt);
+        }
+        listYear.value = curYear;
+        for (var m = 1; m <= 12; m++) {
+          var opt = document.createElement('option');
+          opt.value = m;
+          opt.textContent = m;
+          listMonth.appendChild(opt);
+        }
+        listMonth.value = curMonth;
       })();
 
       listCommodity.addEventListener('change', loadList);
-      listMonthPicker.addEventListener('change', loadList);
+      listYear.addEventListener('change', loadList);
+      listMonth.addEventListener('change', loadList);
 
       function updateChart(list) {
         if (!window.Chart) return;
@@ -264,14 +295,8 @@
       function loadList() {
         listStatus.textContent = '加载中…';
         listStatus.className = 'status loading';
-        var val = (listMonthPicker.value || '').trim();
-        var year = '';
-        var month = '';
-        if (val) {
-          var parts = val.split('-');
-          year = parts[0] || '';
-          month = parts[1] || '';
-        }
+        var year = listYear.value || '';
+        var month = listMonth.value || '';
         var url = '/api/cftc-cot/list?commodity=' + encodeURIComponent(listCommodity.value || 'GC');
         if (year && month) url += '&year=' + year + '&month=' + month;
         fetch(url)

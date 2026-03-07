@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>上期所每日交易数据</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      margin: 0;
+      padding: 24px;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      min-height: 100vh;
+      color: #e8e8e8;
+    }
+    .container { max-width: 600px; margin: 0 auto; }
+    h1 { text-align: center; font-size: 1.75rem; font-weight: 600; margin-bottom: 8px; color: #fff; }
+    .subtitle { text-align: center; color: #94a3b8; font-size: 0.9rem; margin-bottom: 32px; }
+    .card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 20px;
+    }
+    .card h2 { font-size: 1rem; color: #94a3b8; margin: 0 0 16px 0; font-weight: 500; }
+    .hint { color: #64748b; font-size: 0.8rem; margin-bottom: 12px; line-height: 1.4; }
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      background: rgba(192, 192, 192, 0.2);
+      color: #c0c0c0;
+      border: 1px solid rgba(192, 192, 192, 0.4);
+    }
+    .btn:hover { background: rgba(192, 192, 192, 0.3); }
+    .status { text-align: center; padding: 12px; color: #94a3b8; font-size: 0.9rem; }
+    .status.loading { color: #c0c0c0; }
+    .status.error { color: #e57373; }
+    .form-row-month {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .form-row-month label { color: #94a3b8; font-size: 0.9rem; flex-shrink: 0; }
+    .form-row-month .month-select-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      max-width: 200px;
+    }
+    .form-row-month .month-select-wrap select {
+      padding: 10px 12px;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.06);
+      color: #fff;
+      font-size: 1rem;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    .form-row-month .month-select-wrap select option {
+      background: #1e293b;
+      color: #fff;
+    }
+    .chart-wrap { position: relative; height: 240px; margin-top: 16px; margin-bottom: 16px; }
+    .chart-title { color: #94a3b8; font-size: 0.85rem; margin: 16px 0 4px 0; font-weight: 500; }
+    .table-wrap { overflow-x: auto; margin-top: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th, td { padding: 10px 12px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    th:first-child, td:first-child { text-align: left; }
+    th { color: #94a3b8; font-weight: 500; }
+    .container.product-ag td.val-volume { color: #fbbf24; }
+    .container.product-ag td.val-oi { color: #c0c0c0; }
+    .container.product-fu td.val-volume { color: #fb923c; }
+    .container.product-fu td.val-oi { color: #fb923c; }
+    td.change-up { color: #4ade80; }
+    td.change-down { color: #f87171; }
+    td.change-zero { color: #94a3b8; }
+    .empty-tip { color: #64748b; padding: 24px; text-align: center; }
+    @media (max-width: 480px) {
+      body { padding: 12px; }
+      .container { max-width: 100%; }
+      .card { padding: 16px; }
+      table { font-size: 0.78rem; }
+      th, td { padding: 8px 6px; }
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="container" id="mainContainer">
+    <h1 id="pageTitle">上期所每日交易数据</h1>
+    <p class="subtitle" id="pageSubtitle">选择品种 · 成交量 · 持仓量 · 日增仓</p>
+
+    <div class="card">
+      <h2 id="cardTitle">每日交易数据</h2>
+      <p class="hint">选择品种与年月查看，图表展示持仓量与成交量走势。</p>
+      <div class="form-row-month">
+        <label>品种</label>
+        <div class="month-select-wrap">
+          <select id="productSelect">
+            <option value="ag">白银(AG)</option>
+            <option value="fu">燃油(FU)</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row-month">
+        <label>年月</label>
+        <div class="month-select-wrap">
+          <select id="listYear"></select><span>年</span>
+          <select id="listMonth"></select><span>月</span>
+        </div>
+      </div>
+      <button type="button" class="btn" id="btnRefreshList">刷新列表</button>
+      <p class="chart-title">成交量（手）</p>
+      <div class="chart-wrap">
+        <canvas id="volumeChart"></canvas>
+      </div>
+      <p class="chart-title">持仓量（手）& 日增仓</p>
+      <div class="chart-wrap">
+        <canvas id="oiChart"></canvas>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>日期</th>
+              <th>成交量（手）</th>
+              <th>持仓量（手）</th>
+              <th>日增仓</th>
+            </tr>
+          </thead>
+          <tbody id="tradeTableBody"></tbody>
+        </table>
+      </div>
+      <div class="status" id="listStatus"></div>
+    </div>
+
+    <p style="text-align:center;margin-top:24px;">
+      <a href="/" style="color:#64748b;font-size:0.9rem;">返回首页</a>
+    </p>
+  </div>
+
+  <script>
+    (function () {
+      var productSelect = document.getElementById('productSelect');
+      var listYear = document.getElementById('listYear');
+      var listMonth = document.getElementById('listMonth');
+      var btnRefreshList = document.getElementById('btnRefreshList');
+      var tradeTableBody = document.getElementById('tradeTableBody');
+      var listStatus = document.getElementById('listStatus');
+      var pageTitle = document.getElementById('pageTitle');
+      var pageSubtitle = document.getElementById('pageSubtitle');
+      var cardTitle = document.getElementById('cardTitle');
+      var volumeChartInstance = null;
+      var oiChartInstance = null;
+
+      var productNames = { ag: '白银', fu: '燃油' };
+      var productLabels = { ag: '白银(AG)', fu: '燃料油(FU)' };
+
+      (function initFromUrl() {
+        var params = new URLSearchParams(window.location.search);
+        var p = params.get('product');
+        if (p === 'fu' || p === 'ag') {
+          productSelect.value = p;
+        }
+        updatePageTitles();
+      })();
+
+      function updatePageTitles() {
+        var id = productSelect.value;
+        var name = productNames[id] || '每日交易数据';
+        var label = productLabels[id] || '';
+        pageTitle.textContent = name + '每日交易数据';
+        pageSubtitle.textContent = '上期所' + label + ' · 成交量 · 持仓量 · 日增仓';
+        cardTitle.textContent = name + '每日交易数据';
+        var container = document.getElementById('mainContainer');
+        if (container) {
+          container.classList.remove('product-ag', 'product-fu');
+          container.classList.add('product-' + (id || 'ag'));
+        }
+      }
+
+      function getProductId() {
+        return productSelect.value || 'ag';
+      }
+
+      function populateYearMonth(yearSel, monthSel) {
+        var now = new Date();
+        var curYear = now.getFullYear();
+        var curMonth = now.getMonth() + 1;
+        for (var y = curYear; y >= curYear - 5; y--) {
+          var opt = document.createElement('option');
+          opt.value = y;
+          opt.textContent = y;
+          yearSel.appendChild(opt);
+        }
+        yearSel.value = curYear;
+        for (var m = 1; m <= 12; m++) {
+          var opt = document.createElement('option');
+          opt.value = m;
+          opt.textContent = m;
+          monthSel.appendChild(opt);
+        }
+        monthSel.value = curMonth;
+      }
+      populateYearMonth(listYear, listMonth);
+
+      function formatNum(n) {
+        if (n == null || n === '' || isNaN(n)) return '--';
+        return Number(n).toLocaleString('zh-CN');
+      }
+
+      function getVolumeColor() {
+        return getProductId() === 'fu'
+          ? { bg: 'rgba(249, 115, 22, 0.35)', border: 'rgba(249, 115, 22, 0.7)', tick: '#fb923c' }
+          : { bg: 'rgba(251, 191, 36, 0.35)', border: 'rgba(251, 191, 36, 0.7)', tick: '#fbbf24' };
+      }
+
+      function getOIChartColors() {
+        return getProductId() === 'fu'
+          ? { line: 'rgba(249, 115, 22, 0.9)', lineBg: 'rgba(249, 115, 22, 0.15)', tick: '#fb923c', title: '#fb923c' }
+          : { line: 'rgba(192, 192, 192, 0.9)', lineBg: 'rgba(192, 192, 192, 0.15)', tick: '#c0c0c0', title: '#c0c0c0' };
+      }
+
+      function updateCharts(list) {
+        if (!window.Chart) return;
+        var sorted = list.slice().sort(function (a, b) {
+          return (a.recordDate || '').localeCompare(b.recordDate || '');
+        });
+        var labels = sorted.map(function (r) { return r.recordDate || ''; });
+        var volumeData = sorted.map(function (r) { return r.volume || 0; });
+        var oiData = sorted.map(function (r) { return r.openInterest || 0; });
+        var oiChangeData = sorted.map(function (r) { return r.oiChange || 0; });
+
+        var oiChangeBg = oiChangeData.map(function (v) {
+          return v >= 0 ? 'rgba(74, 222, 128, 0.5)' : 'rgba(248, 113, 113, 0.5)';
+        });
+        var oiChangeBorder = oiChangeData.map(function (v) {
+          return v >= 0 ? 'rgba(74, 222, 128, 0.8)' : 'rgba(248, 113, 113, 0.8)';
+        });
+
+        var volColor = getVolumeColor();
+        var oiColor = getOIChartColors();
+
+        var volumeCtx = document.getElementById('volumeChart');
+        if (volumeCtx) {
+          if (volumeChartInstance) {
+            volumeChartInstance.data.labels = labels;
+            volumeChartInstance.data.datasets[0].data = volumeData;
+            volumeChartInstance.data.datasets[0].backgroundColor = volColor.bg;
+            volumeChartInstance.data.datasets[0].borderColor = volColor.border;
+            volumeChartInstance.options.scales.y.ticks.color = volColor.tick;
+            volumeChartInstance.update();
+          } else {
+            volumeChartInstance = new Chart(volumeCtx, {
+              type: 'bar',
+              data: {
+                labels: labels,
+                datasets: [{
+                  label: '成交量',
+                  data: volumeData,
+                  backgroundColor: volColor.bg,
+                  borderColor: volColor.border,
+                  borderWidth: 1
+                }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: { legend: { display: false } },
+                scales: {
+                  x: {
+                    grid: { color: 'rgba(255,255,255,0.06)' },
+                    ticks: { color: '#94a3b8', maxRotation: 45, font: { size: 10 } }
+                  },
+                  y: {
+                    grid: { color: 'rgba(255,255,255,0.06)' },
+                    ticks: { color: volColor.tick, font: { size: 10 } }
+                  }
+                }
+              }
+            });
+          }
+        }
+
+        var oiCtx = document.getElementById('oiChart');
+        if (oiCtx) {
+          if (oiChartInstance) {
+            oiChartInstance.data.labels = labels;
+            oiChartInstance.data.datasets[0].data = oiData;
+            oiChartInstance.data.datasets[0].borderColor = oiColor.line;
+            oiChartInstance.data.datasets[0].backgroundColor = oiColor.lineBg;
+            oiChartInstance.data.datasets[1].data = oiChangeData;
+            oiChartInstance.data.datasets[1].backgroundColor = oiChangeBg;
+            oiChartInstance.data.datasets[1].borderColor = oiChangeBorder;
+            oiChartInstance.options.scales.yOI.ticks.color = oiColor.tick;
+            oiChartInstance.options.scales.yOI.title.color = oiColor.title;
+            oiChartInstance.update();
+          } else {
+            oiChartInstance = new Chart(oiCtx, {
+              type: 'bar',
+              data: {
+                labels: labels,
+                datasets: [
+                  {
+                    label: '持仓量',
+                    type: 'line',
+                    data: oiData,
+                    borderColor: oiColor.line,
+                    backgroundColor: oiColor.lineBg,
+                    fill: false,
+                    tension: 0.2,
+                    pointRadius: 3,
+                    yAxisID: 'yOI',
+                    order: 1
+                  },
+                  {
+                    label: '日增仓',
+                    data: oiChangeData,
+                    backgroundColor: oiChangeBg,
+                    borderColor: oiChangeBorder,
+                    borderWidth: 1,
+                    yAxisID: 'yChange',
+                    order: 2
+                  }
+                ]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                  legend: { labels: { color: '#94a3b8', font: { size: 11 } } }
+                },
+                scales: {
+                  x: {
+                    grid: { color: 'rgba(255,255,255,0.06)' },
+                    ticks: { color: '#94a3b8', maxRotation: 45, font: { size: 10 } }
+                  },
+                  yOI: {
+                    type: 'linear',
+                    position: 'left',
+                    grid: { color: 'rgba(255,255,255,0.06)' },
+                    ticks: { color: oiColor.tick, font: { size: 10 } },
+                    title: { display: true, text: '持仓量', color: oiColor.title, font: { size: 11 } }
+                  },
+                  yChange: {
+                    type: 'linear',
+                    position: 'right',
+                    grid: { drawOnChartArea: false },
+                    ticks: { color: '#94a3b8', font: { size: 10 } },
+                    title: { display: true, text: '日增仓', color: '#94a3b8', font: { size: 11 } }
+                  }
+                }
+              }
+            });
+          }
+        }
+      }
+
+      function loadTradeList() {
+        listStatus.textContent = '加载中…';
+        listStatus.className = 'status loading';
+        var year = listYear.value;
+        var month = listMonth.value;
+        var productId = getProductId();
+        var url = '/api/shfe-trade/list?year=' + year + '&month=' + month + '&productId=' + productId;
+        fetch(url)
+          .then(function (res) { return res.json(); })
+          .then(function (result) {
+            listStatus.textContent = '';
+            listStatus.className = 'status';
+            var list = (result && result.data) ? result.data : [];
+            if (list.length === 0) {
+              tradeTableBody.innerHTML = '<tr><td colspan="4" class="empty-tip">暂无数据</td></tr>';
+              updateCharts([]);
+              return;
+            }
+            list.sort(function (a, b) {
+              return (b.recordDate || '').localeCompare(a.recordDate || '');
+            });
+            tradeTableBody.innerHTML = list.map(function (row) {
+              var changeClass = 'change-zero';
+              var changePrefix = '';
+              if (row.oiChange > 0) { changeClass = 'change-up'; changePrefix = '+'; }
+              else if (row.oiChange < 0) { changeClass = 'change-down'; }
+              return '<tr>' +
+                '<td>' + (row.recordDate || '--') + '</td>' +
+                '<td class="val-volume">' + formatNum(row.volume) + '</td>' +
+                '<td class="val-oi">' + formatNum(row.openInterest) + '</td>' +
+                '<td class="' + changeClass + '">' + changePrefix + formatNum(row.oiChange) + '</td>' +
+                '</tr>';
+            }).join('');
+            updateCharts(list);
+          })
+          .catch(function (err) {
+            listStatus.textContent = '加载失败：' + (err.message || '网络错误');
+            listStatus.className = 'status error';
+            tradeTableBody.innerHTML = '';
+          });
+      }
+
+      productSelect.addEventListener('change', function () {
+        updatePageTitles();
+        loadTradeList();
+      });
+      listYear.addEventListener('change', loadTradeList);
+      listMonth.addEventListener('change', loadTradeList);
+      btnRefreshList.addEventListener('click', loadTradeList);
+      loadTradeList();
+    })();
+  </script>
+</body>
+</html>

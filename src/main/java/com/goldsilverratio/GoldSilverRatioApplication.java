@@ -3,12 +3,14 @@ package com.goldsilverratio;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * 金银比后端启动类。
  */
 @SpringBootApplication
 @MapperScan("com.goldsilverratio.mapper")
+@EnableScheduling
 public class GoldSilverRatioApplication {
 
     public static void main(String[] args) {

@@ -117,31 +117,23 @@
 
   <script>
     (function () {
-      var GOLDAPI_TOKEN = 'goldapi-15ewwosmm6j8wxo-io';
-
-      function extractPriceFromJson(obj) {
-        if (obj == null || typeof obj !== 'object') return NaN;
-        var n = obj.price ?? obj.close ?? obj.ask ?? obj.last ?? obj.rate;
-        if (n != null) return parseFloat(n);
-        return NaN;
-      }
-
-      function toYYYYMMDD(d) {
-        var y = d.getFullYear();
-        var m = (d.getMonth() + 1);
-        var day = d.getDate();
-        return '' + y + (m < 10 ? '0' : '') + m + (day < 10 ? '0' : '') + day;
+      function formatNum(n) {
+        if (n == null || n === '' || isNaN(n)) return '--';
+        return Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
       }
 
       function toTradeDateYYYYMMDD(dateStr) {
         var y = parseInt(dateStr.slice(0, 4), 10);
-        var m = parseInt(dateStr.slice(4, 6), 10) - 1;
-        var day = parseInt(dateStr.slice(6, 8), 10);
+        var m = parseInt(dateStr.slice(5, 7), 10) - 1;
+        var day = parseInt(dateStr.slice(8, 10), 10);
         var d = new Date(y, m, day);
         var dow = d.getDay();
         if (dow === 0) d.setDate(d.getDate() - 2);
         else if (dow === 6) d.setDate(d.getDate() - 1);
-        return toYYYYMMDD(d);
+        var yy = d.getFullYear();
+        var mm = d.getMonth() + 1;
+        var dd = d.getDate();
+        return '' + yy + (mm < 10 ? '0' : '') + mm + (dd < 10 ? '0' : '') + dd;
       }
 
       var inputFetchDate = document.getElementById('inputFetchDate');
@@ -151,7 +143,7 @@
       (function setDefaultDate() {
         var d = new Date();
         var y = d.getFullYear();
-        var m = (d.getMonth() + 1);
+        var m = d.getMonth() + 1;
         var day = d.getDate();
         inputFetchDate.value = y + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day;
       })();
@@ -163,41 +155,20 @@
           byDateFeedStatus.className = 'status error';
           return;
         }
-        var dateStr = dateVal.replace(/-/g, '');
-        var tradeDateStr = toTradeDateYYYYMMDD(dateStr);
-        var baseUrl = 'https://www.goldapi.io/api';
-        var headers = { 'x-access-token': GOLDAPI_TOKEN };
+        var dateStr = toTradeDateYYYYMMDD(dateVal);
         btnFetchByDate.disabled = true;
-        byDateFeedStatus.textContent = '正在请求 GoldAPI (XAU、XAG)…';
+        byDateFeedStatus.textContent = '正在获取并保存…';
         byDateFeedStatus.className = 'status loading';
-        Promise.all([
-          fetch(baseUrl + '/XAU/USD/' + tradeDateStr, { headers: headers }).then(function (r) { return r.json(); }),
-          fetch(baseUrl + '/XAG/USD/' + tradeDateStr, { headers: headers }).then(function (r) { return r.json(); })
-        ])
-          .then(function (results) {
-            var gold = extractPriceFromJson(results[0]);
-            var silver = extractPriceFromJson(results[1]);
-            if (isNaN(gold) || isNaN(silver) || silver <= 0) {
-              byDateFeedStatus.textContent = 'GoldAPI 返回中未解析到有效金价/银价';
-              byDateFeedStatus.className = 'status error';
-              btnFetchByDate.disabled = false;
-              return;
-            }
-            byDateFeedStatus.textContent = '已获取，正在保存…';
-            return fetch('/api/ratio/feed', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ gold: gold, silver: silver, date: tradeDateStr })
-            }).then(function (res) { return res.json(); });
-          })
+        fetch('/api/ratio/fetch-date?date=' + dateStr, { method: 'POST' })
+          .then(function (res) { return res.json(); })
           .then(function (result) {
             btnFetchByDate.disabled = false;
             if (result && result.code === 200) {
               byDateFeedStatus.textContent = '已保存';
               byDateFeedStatus.className = 'status';
               loadRatioList();
-            } else if (result) {
-              byDateFeedStatus.textContent = (result.message || '保存失败');
+            } else {
+              byDateFeedStatus.textContent = (result && result.message) || '保存失败';
               byDateFeedStatus.className = 'status error';
             }
           })
@@ -207,11 +178,6 @@
             byDateFeedStatus.className = 'status error';
           });
       });
-
-      function formatNum(n) {
-        if (n == null || n === '' || isNaN(n)) return '--';
-        return Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
-      }
 
       var btnRefreshList = document.getElementById('btnRefreshList');
       var ratioTableBody = document.getElementById('ratioTableBody');

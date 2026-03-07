@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>燃油库存详情 - 上期所</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      margin: 0;
+      padding: 24px;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      min-height: 100vh;
+      color: #e8e8e8;
+    }
+    .container { max-width: 640px; margin: 0 auto; }
+    h1 { text-align: center; font-size: 1.5rem; font-weight: 600; margin-bottom: 4px; color: #fff; }
+    .subtitle { text-align: center; color: #94a3b8; font-size: 0.9rem; margin-bottom: 24px; }
+    .card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    th {
+      color: #94a3b8;
+      font-weight: 500;
+      background: rgba(15, 23, 42, 0.6);
+      border-bottom: 1px solid rgba(255,255,255,0.12);
+    }
+    td.value-inventory { color: #fb923c; }
+    td.change-up { color: #4ade80; }
+    td.change-down { color: #f87171; }
+    td.change-zero { color: #94a3b8; }
+    tr.row-region td:first-child {
+      font-weight: 600;
+      color: #e2e8f0;
+      background: rgba(249, 115, 22, 0.06);
+      border-left: 3px solid rgba(249, 115, 22, 0.5);
+      padding-left: 9px;
+    }
+    tr.row-warehouse td:nth-child(2) {
+      padding-left: 28px;
+      color: #cbd5e1;
+    }
+    tr.row-subtotal td {
+      font-weight: 600;
+      color: #fb923c;
+      background: rgba(255,255,255,0.04);
+    }
+    tr.row-subtotal td:nth-child(2) {
+      padding-left: 28px;
+      font-style: italic;
+    }
+    tr.row-total td {
+      font-weight: 700;
+      color: #fff;
+      background: rgba(249, 115, 22, 0.12);
+      border-top: 2px solid rgba(255,255,255,0.2);
+    }
+    .empty-tip { color: #64748b; padding: 24px; text-align: center; }
+    .status { text-align: center; padding: 12px; color: #94a3b8; font-size: 0.9rem; }
+    .status.loading { color: #fb923c; }
+    .status.error { color: #e57373; }
+    .back-link { display: inline-block; margin-top: 16px; color: #64748b; font-size: 0.9rem; }
+    .back-link:hover { color: #94a3b8; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>燃油库存详情</h1>
+    <p class="subtitle" id="pageSubtitle">按仓库分布 · 单位：千克</p>
+
+    <div class="card">
+      <div class="table-wrap">
+        <table id="detailTable">
+          <thead>
+            <tr>
+              <th>地区</th>
+              <th>仓库</th>
+              <th>期货(kg)</th>
+              <th>增减</th>
+            </tr>
+          </thead>
+          <tbody id="detailTableBody"></tbody>
+        </table>
+      </div>
+      <div class="status" id="detailStatus"></div>
+    </div>
+
+    <a href="/fuel-inventory.html" class="back-link">← 返回燃油库存</a>
+  </div>
+
+  <script>
+    (function () {
+      var params = new URLSearchParams(window.location.search);
+      var dateParam = params.get('date');
+      var dateStr = '';
+
+      if (dateParam) {
+        var m = dateParam.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (m) {
+          dateStr = m[1] + m[2] + m[3];
+        } else if (dateParam.length === 8) {
+          dateStr = dateParam;
+        }
+      }
+
+      var detailTableBody = document.getElementById('detailTableBody');
+      var detailStatus = document.getElementById('detailStatus');
+      var pageSubtitle = document.getElementById('pageSubtitle');
+
+      function formatNum(n) {
+        if (n == null || n === '' || (typeof n === 'number' && isNaN(n))) return '--';
+        return Number(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+      }
+
+      function formatChange(change) {
+        if (change == null || (typeof change === 'number' && isNaN(change))) return '--';
+        var n = Number(change);
+        if (n > 0) return '+' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+        return n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+      }
+
+      function changeClass(change) {
+        if (change == null || (typeof change === 'number' && isNaN(change))) return 'change-zero';
+        var n = Number(change);
+        if (n > 0) return 'change-up';
+        if (n < 0) return 'change-down';
+        return 'change-zero';
+      }
+
+      function loadDetail() {
+        if (!dateStr) {
+          detailStatus.textContent = '请通过列表页的「详情」链接进入';
+          detailStatus.className = 'status error';
+          return;
+        }
+        var displayDate = dateStr.length === 8
+          ? dateStr.slice(0, 4) + '-' + dateStr.slice(4, 6) + '-' + dateStr.slice(6, 8)
+          : dateStr;
+        pageSubtitle.textContent = displayDate + ' · 按仓库分布 · 单位：千克';
+        detailStatus.textContent = '加载中…';
+        detailStatus.className = 'status loading';
+        fetch('/api/fuel-inventory/detail?date=' + encodeURIComponent(dateStr))
+          .then(function (res) { return res.json(); })
+          .then(function (result) {
+            detailStatus.textContent = '';
+            detailStatus.className = 'status';
+            var list = (result && result.data) ? result.data : [];
+            if (list.length === 0) {
+              detailTableBody.innerHTML = '<tr><td colspan="4" class="empty-tip">' +
+                (result && result.code !== 200 ? (result.message || '无数据') : '该日无数据或解析失败') + '</td></tr>';
+              return;
+            }
+            detailTableBody.innerHTML = list.map(function (row) {
+              var region = row.region || '';
+              var warehouse = row.warehouse || '--';
+              var futures = formatNum(row.futuresKg);
+              var change = row.changeKg;
+              var changeStr = formatChange(change);
+              var cls = changeClass(change);
+              var rowType = row.rowType || 'data';
+              var trClass = 'row-warehouse';
+              if (rowType === 'subtotal') trClass = 'row-subtotal';
+              else if (rowType === 'total') trClass = 'row-total';
+              else if (region) trClass = 'row-region';
+              return '<tr class="' + trClass + '"><td>' + region + '</td><td>' + warehouse + '</td><td class="value-inventory">' +
+                futures + '</td><td class="' + cls + '">' + changeStr + '</td></tr>';
+            }).join('');
+          })
+          .catch(function (err) {
+            detailStatus.textContent = '加载失败：' + (err.message || '网络错误');
+            detailStatus.className = 'status error';
+            detailTableBody.innerHTML = '';
+          });
+      }
+
+      loadDetail();
+    })();
+  </script>
+</body>
+</html>

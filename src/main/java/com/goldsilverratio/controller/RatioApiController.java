@@ -2,6 +2,7 @@ package com.goldsilverratio.controller;
 
 import com.goldsilverratio.common.Result;
 import com.goldsilverratio.service.RatioApiService;
+import com.goldsilverratio.service.RatioFetcher;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -20,9 +21,26 @@ import java.util.Map;
 public class RatioApiController {
 
     private final RatioApiService ratioApiService;
+    private final RatioFetcher ratioFetcher;
 
-    public RatioApiController(RatioApiService ratioApiService) {
+    public RatioApiController(RatioApiService ratioApiService, RatioFetcher ratioFetcher) {
         this.ratioApiService = ratioApiService;
+        this.ratioFetcher = ratioFetcher;
+    }
+
+    /**
+     * 按日期从 GoldAPI 拉取金银比并保存。不传 date 则拉取当日（按交易日折算）。
+     *
+     * @param date 可选，yyyyMMdd
+     * @return 成功为 data 描述，失败为 message
+     */
+    @PostMapping("/fetch-date")
+    public Result<String> fetchDate(@RequestParam(value = "date", required = false) String date) {
+        String msg = ratioFetcher.fetchAndSave(date);
+        if (msg != null && msg.startsWith("已保存")) {
+            return Result.ok(msg);
+        }
+        return Result.fail(400, msg != null ? msg : "拉取失败");
     }
 
     /**

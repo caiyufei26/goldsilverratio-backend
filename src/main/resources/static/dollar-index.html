@@ -48,18 +48,6 @@
       margin-top: 8px;
     }
     .btn.primary:hover { background: rgba(59, 130, 246, 0.35); }
-    .form-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-    .form-row label { width: 100px; color: #94a3b8; font-size: 0.9rem; }
-    .form-row input, .form-row select {
-      flex: 1;
-      max-width: 160px;
-      padding: 10px 12px;
-      border: 1px solid rgba(255,255,255,0.15);
-      border-radius: 8px;
-      background: rgba(255,255,255,0.06);
-      color: #fff;
-      font-size: 1rem;
-    }
     .form-row-month {
       display: flex;
       align-items: center;
@@ -67,15 +55,26 @@
       margin-bottom: 16px;
     }
     .form-row-month label { color: #94a3b8; font-size: 0.9rem; flex-shrink: 0; }
-    .form-row-month input[type="month"] {
+    .form-row-month .month-select-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
       flex: 1;
-      max-width: 160px;
+      max-width: 200px;
+    }
+    .form-row-month .month-select-wrap select {
       padding: 10px 12px;
       border: 1px solid rgba(255,255,255,0.15);
       border-radius: 8px;
       background: rgba(255,255,255,0.06);
       color: #fff;
       font-size: 1rem;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    .form-row-month .month-select-wrap select option {
+      background: #1e293b;
+      color: #fff;
     }
     .table-wrap { overflow-x: auto; margin-top: 12px; }
     table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
@@ -93,22 +92,14 @@
     <p class="subtitle">每日收盘价 · DXY</p>
 
     <div class="card feed">
-      <h2>获取该月数据</h2>
-      <p class="hint">通过汇率 API 计算 DXY，逐日获取当月已过日期的数据并保存。</p>
-      <div class="form-row-month">
-        <label>年月</label>
-        <input type="month" id="fetchMonthPicker">
-      </div>
-      <button type="button" class="btn primary" id="btnFetchMonth">获取该月美元指数</button>
-      <div class="status" id="fetchStatus"></div>
-    </div>
-
-    <div class="card feed">
       <h2>每日美元指数列表</h2>
       <p class="hint">选择年月查看该月数据，图表与列表同步切换。</p>
       <div class="form-row-month">
         <label>年月</label>
-        <input type="month" id="listMonthPicker">
+        <div class="month-select-wrap">
+          <select id="listYear"></select><span>年</span>
+          <select id="listMonth"></select><span>月</span>
+        </div>
       </div>
       <button type="button" class="btn" id="btnRefreshList">刷新列表</button>
       <div class="chart-wrap">
@@ -135,73 +126,41 @@
 
   <script>
     (function () {
-      function toYYYYMMDD(d) {
-        var y = d.getFullYear();
-        var m = (d.getMonth() + 1);
-        var day = d.getDate();
-        return '' + y + (m < 10 ? '0' : '') + m + (day < 10 ? '0' : '') + day;
+      function populateYearMonth(yearSel, monthSel) {
+        var now = new Date();
+        var curYear = now.getFullYear();
+        var curMonth = now.getMonth() + 1;
+        for (var y = curYear; y >= curYear - 5; y--) {
+          var opt = document.createElement('option');
+          opt.value = y;
+          opt.textContent = y;
+          yearSel.appendChild(opt);
+        }
+        yearSel.value = curYear;
+        for (var m = 1; m <= 12; m++) {
+          var opt = document.createElement('option');
+          opt.value = m;
+          opt.textContent = m;
+          monthSel.appendChild(opt);
+        }
+        monthSel.value = curMonth;
       }
 
-      var fetchMonthPicker = document.getElementById('fetchMonthPicker');
-      var btnFetchMonth = document.getElementById('btnFetchMonth');
-      var fetchStatus = document.getElementById('fetchStatus');
-
-      (function setDefaultFetchMonth() {
-        var d = new Date();
-        fetchMonthPicker.value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-      })();
-
-      btnFetchMonth.addEventListener('click', function () {
-        var val = (fetchMonthPicker.value || '').trim();
-        if (!val) {
-          fetchStatus.textContent = '请选择年月';
-          fetchStatus.className = 'status error';
-          return;
-        }
-        var parts = val.split('-');
-        var year = parseInt(parts[0], 10);
-        var month = parseInt(parts[1], 10);
-        btnFetchMonth.disabled = true;
-        fetchStatus.textContent = '正在获取该月美元指数…';
-        fetchStatus.className = 'status loading';
-        fetch('/api/dollar-index/fetch-month?year=' + year + '&month=' + month)
-          .then(function (res) { return res.json(); })
-          .then(function (result) {
-            btnFetchMonth.disabled = false;
-            if (result && result.code === 200) {
-              fetchStatus.textContent = result.data || '已保存';
-              fetchStatus.className = 'status';
-              listMonthPicker.value = fetchMonthPicker.value;
-              loadDxyList();
-            } else {
-              fetchStatus.textContent = (result && result.message) || '获取失败';
-              fetchStatus.className = 'status error';
-            }
-          })
-          .catch(function (err) {
-            btnFetchMonth.disabled = false;
-            fetchStatus.textContent = '失败：' + (err.message || '网络错误');
-            fetchStatus.className = 'status error';
-          });
-      });
+      var listYear = document.getElementById('listYear');
+      var listMonth = document.getElementById('listMonth');
+      var btnRefreshList = document.getElementById('btnRefreshList');
+      var dxyTableBody = document.getElementById('dxyTableBody');
+      var listStatus = document.getElementById('listStatus');
+      var dxyChartInstance = null;
+      populateYearMonth(listYear, listMonth);
 
       function formatNum(n) {
         if (n == null || n === '' || isNaN(n)) return '--';
         return Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
       }
 
-      var listMonthPicker = document.getElementById('listMonthPicker');
-      var btnRefreshList = document.getElementById('btnRefreshList');
-      var dxyTableBody = document.getElementById('dxyTableBody');
-      var listStatus = document.getElementById('listStatus');
-      var dxyChartInstance = null;
-
-      (function setDefaultListMonth() {
-        var d = new Date();
-        listMonthPicker.value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-      })();
-
-      listMonthPicker.addEventListener('change', loadDxyList);
+      listYear.addEventListener('change', loadDxyList);
+      listMonth.addEventListener('change', loadDxyList);
 
       function updateChart(list) {
         if (!window.Chart) return;
@@ -257,14 +216,8 @@
       function loadDxyList() {
         listStatus.textContent = '加载中…';
         listStatus.className = 'status loading';
-        var val = (listMonthPicker.value || '').trim();
-        var year = '';
-        var month = '';
-        if (val) {
-          var parts = val.split('-');
-          year = parts[0] || '';
-          month = parts[1] || '';
-        }
+        var year = listYear.value;
+        var month = listMonth.value;
         var url = '/api/dollar-index/list?year=' + encodeURIComponent(year) + '&month=' + encodeURIComponent(month);
         fetch(url)
           .then(function (res) { return res.json(); })
@@ -273,7 +226,7 @@
             listStatus.className = 'status';
             var list = (result && result.data) ? result.data : [];
             if (list.length === 0) {
-              dxyTableBody.innerHTML = '<tr><td colspan="2" class="empty-tip">暂无数据</td></tr>';
+              dxyTableBody.innerHTML = '<tr><td colspan="2" class="empty-tip">暂无数据，请到<a href="/shfe-fetch-data.html" style="color:#60a5fa;">数据同步</a>页获取</td></tr>';
               updateChart([]);
               return;
             }

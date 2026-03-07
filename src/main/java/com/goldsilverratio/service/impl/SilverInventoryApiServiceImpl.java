@@ -1,7 +1,10 @@
 package com.goldsilverratio.service.impl;
 
+import com.goldsilverratio.entity.FuelInventory;
 import com.goldsilverratio.entity.SilverInventory;
+import com.goldsilverratio.mapper.FuelInventoryMapper;
 import com.goldsilverratio.mapper.SilverInventoryMapper;
+import com.goldsilverratio.service.ShfeInventoryFetcher;
 import com.goldsilverratio.service.SilverInventoryApiService;
 import com.goldsilverratio.service.ShfeSilverInventoryFetcher;
 import org.springframework.stereotype.Service;
@@ -17,7 +20,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 上期所白银库存 API 业务实现。
+ * 上期所白银库存 API 业务实现。获取该月数据时同时拉取白银与燃油库存。
  */
 @Service
 public class SilverInventoryApiServiceImpl implements SilverInventoryApiService {
@@ -25,14 +28,22 @@ public class SilverInventoryApiServiceImpl implements SilverInventoryApiService 
     private static final DateTimeFormatter YYYYMMDD = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final DateTimeFormatter RECORD_DATE_DISPLAY =
             DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final String PRODUCT_AG = "ag";
+    private static final String PRODUCT_FU = "fu";
 
     private final SilverInventoryMapper silverInventoryMapper;
+    private final FuelInventoryMapper fuelInventoryMapper;
     private final ShfeSilverInventoryFetcher shfeSilverInventoryFetcher;
+    private final ShfeInventoryFetcher shfeInventoryFetcher;
 
     public SilverInventoryApiServiceImpl(SilverInventoryMapper silverInventoryMapper,
-                                          ShfeSilverInventoryFetcher shfeSilverInventoryFetcher) {
+                                         FuelInventoryMapper fuelInventoryMapper,
+                                         ShfeSilverInventoryFetcher shfeSilverInventoryFetcher,
+                                         ShfeInventoryFetcher shfeInventoryFetcher) {
         this.silverInventoryMapper = silverInventoryMapper;
+        this.fuelInventoryMapper = fuelInventoryMapper;
         this.shfeSilverInventoryFetcher = shfeSilverInventoryFetcher;
+        this.shfeInventoryFetcher = shfeInventoryFetcher;
     }
 
     @Override
@@ -106,19 +117,36 @@ public class SilverInventoryApiServiceImpl implements SilverInventoryApiService 
     public String fetchMonthFromShfe(int year, int month) {
         YearMonth ym = YearMonth.of(year, month);
         int lastDay = ym.lengthOfMonth();
-        int saved = 0;
+        int silverSaved = 0;
+        int fuelSaved = 0;
         for (int day = 1; day <= lastDay; day++) {
             LocalDate d = ym.atDay(day);
-            BigDecimal inventory = shfeSilverInventoryFetcher.fetchByDate(d);
-            if (inventory != null) {
-                saveByDate(d.format(YYYYMMDD), inventory);
-                saved++;
+            BigDecimal agKg = shfeInventoryFetcher.fetchByDate(d, PRODUCT_AG);
+            if (agKg != null) {
+                saveByDate(d.format(YYYYMMDD), agKg);
+                silverSaved++;
+            }
+            BigDecimal fuKg = shfeInventoryFetcher.fetchByDate(d, PRODUCT_FU);
+            if (fuKg != null) {
+                saveFuelByDate(d, fuKg);
+                fuelSaved++;
             }
         }
-        if (saved == 0) {
+        if (silverSaved == 0 && fuelSaved == 0) {
             return "该月无有效数据或上期所未返回数据";
         }
-        return "已获取并保存 " + saved + " 条";
+        return "白银 " + silverSaved + " 条，燃油 " + fuelSaved + " 条";
+    }
+
+    private void saveFuelByDate(LocalDate recordDate, BigDecimal inventoryKg) {
+        if (inventoryKg == null) {
+            return;
+        }
+        fuelInventoryMapper.deleteByDate(recordDate);
+        FuelInventory record = new FuelInventory();
+        record.setRecordDate(recordDate);
+        record.setInventoryKg(inventoryKg);
+        fuelInventoryMapper.insert(record);
     }
 
     @Override

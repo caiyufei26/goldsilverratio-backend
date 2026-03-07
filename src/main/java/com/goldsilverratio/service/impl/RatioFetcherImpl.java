@@ -97,8 +97,8 @@ public class RatioFetcherImpl implements RatioFetcher {
         conn.setSSLSocketFactory(NO_SNI_SSL);
         conn.setRequestMethod("GET");
         conn.setRequestProperty("x-access-token", goldapiToken);
-        conn.setConnectTimeout(15000);
-        conn.setReadTimeout(15000);
+        conn.setConnectTimeout(20000);
+        conn.setReadTimeout(35000);
         Map<String, Object> body;
         try (InputStream in = conn.getInputStream()) {
             body = objectMapper.readValue(in, Map.class);

@@ -30,4 +30,9 @@
         DELETE FROM gold_silver_ratio_usd
         WHERE record_date = STR_TO_DATE(#{dateStr}, '%Y%m%d')
     </delete>
+
+    <select id="countByDate" resultType="int">
+        SELECT COUNT(*) FROM gold_silver_ratio_usd
+        WHERE record_date = STR_TO_DATE(#{dateStr}, '%Y%m%d')
+    </select>
 </mapper>

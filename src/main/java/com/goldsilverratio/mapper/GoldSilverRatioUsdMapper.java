@@ -22,4 +22,9 @@ public interface GoldSilverRatioUsdMapper {
                                            @Param("end") LocalDate end);
 
     int deleteByDate(@Param("dateStr") String dateStr);
+
+    /**
+     * 查询指定日期是否已有记录。
+     */
+    int countByDate(@Param("dateStr") String dateStr);
 }

@@ -55,6 +55,11 @@ public class RatioUsdApiServiceImpl implements RatioUsdApiService {
     }
 
     @Override
+    public boolean hasDataForDate(String dateStr) {
+        return goldSilverRatioUsdMapper.countByDate(dateStr) > 0;
+    }
+
+    @Override
     public List<Map<String, Object>> listPage(int page, int size) {
         int offset = (page <= 0 ? 0 : page - 1) * (size <= 0 ? 100 : size);
         int limit = size <= 0 ? 100 : Math.min(size, 500);

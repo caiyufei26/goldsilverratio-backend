@@ -15,6 +15,11 @@ public interface RatioUsdApiService {
     void saveByDate(BigDecimal gold, BigDecimal silver, String dateStr);
 
     /**
+     * 指定日期是否已有数据（有则无需再请求接口）。
+     */
+    boolean hasDataForDate(String dateStr);
+
+    /**
      * 分页列表，每项含 recordDate、goldPrice、silverPrice、ratio。
      */
     List<Map<String, Object>> listPage(int page, int size);

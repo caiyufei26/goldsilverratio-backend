@@ -30,7 +30,7 @@
         SELECT id, gold_price, silver_price, ratio, record_date AS recordDate, record_time
         FROM gold_silver_ratio
         WHERE record_date &gt;= #{start} AND record_date &lt;= #{end}
-        ORDER BY record_date ASC
+        ORDER BY record_date DESC, record_time DESC
     </select>
 
     <delete id="deleteByDate">

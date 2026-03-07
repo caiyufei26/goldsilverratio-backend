@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.goldsilverratio.mapper.GoldSilverRatioMapper">
+<mapper namespace="com.goldsilverratio.mapper.GoldSilverRatioUsdMapper">
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO gold_silver_ratio (gold_price, silver_price, ratio, record_date, record_time)
+        INSERT INTO gold_silver_ratio_usd (gold_price, silver_price, ratio, record_date, record_time)
         VALUES (
             #{goldPrice}, #{silverPrice}, #{ratio}, #{recordDate},
             <if test="recordTime != null">#{recordTime}</if>
@@ -12,29 +12,22 @@
         )
     </insert>
 
-    <select id="selectLatest" resultType="com.goldsilverratio.entity.GoldSilverRatio">
+    <select id="selectPage" resultType="com.goldsilverratio.entity.GoldSilverRatioUsd">
         SELECT id, gold_price, silver_price, ratio, record_date AS recordDate, record_time
-        FROM gold_silver_ratio
-        ORDER BY record_date DESC, record_time DESC
-        LIMIT 1
-    </select>
-
-    <select id="selectPage" resultType="com.goldsilverratio.entity.GoldSilverRatio">
-        SELECT id, gold_price, silver_price, ratio, record_date AS recordDate, record_time
-        FROM gold_silver_ratio
+        FROM gold_silver_ratio_usd
         ORDER BY record_date DESC, record_time DESC
         LIMIT #{offset}, #{size}
     </select>
 
-    <select id="selectByMonth" resultType="com.goldsilverratio.entity.GoldSilverRatio">
+    <select id="selectByMonth" resultType="com.goldsilverratio.entity.GoldSilverRatioUsd">
         SELECT id, gold_price, silver_price, ratio, record_date AS recordDate, record_time
-        FROM gold_silver_ratio
+        FROM gold_silver_ratio_usd
         WHERE record_date &gt;= #{start} AND record_date &lt;= #{end}
         ORDER BY record_date ASC
     </select>
 
     <delete id="deleteByDate">
-        DELETE FROM gold_silver_ratio
+        DELETE FROM gold_silver_ratio_usd
         WHERE record_date = STR_TO_DATE(#{dateStr}, '%Y%m%d')
     </delete>
 </mapper>

@@ -7,6 +7,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -79,6 +81,98 @@ public class ShfeTradeDailyFetcher {
             }
         }
         return new ArrayList<>();
+    }
+
+    /**
+     * 获取指定日期上期所黄金(au)、白银(ag)主力合约结算价，用于计算金银比。
+     * 黄金报价单位 元/克，白银 元/千克；返回 map 中 au 为 元/克，ag 已换算为 元/克。
+     *
+     * @param date 日期
+     * @return map 含 "au"(金价元/克)、"ag"(银价元/克)，缺数据时对应 key 不存在或为 null
+     */
+    public Map<String, BigDecimal> fetchAuAgSettlementPrices(LocalDate date) {
+        Map<String, BigDecimal> out = new HashMap<>(2);
+        String dateStr = date.format(YYYYMMDD);
+        for (String urlTpl : DATA_URLS) {
+            String url = String.format(urlTpl, dateStr);
+            String json = fetchJson(url);
+            if (json == null) {
+                continue;
+            }
+            BigDecimal auPrice = parseSettlementPriceByProduct(json, "au_f");
+            BigDecimal agPriceKg = parseSettlementPriceByProduct(json, "ag_f");
+            if (auPrice != null) {
+                out.put("au", auPrice);
+            }
+            if (agPriceKg != null) {
+                out.put("ag", agPriceKg.divide(BigDecimal.valueOf(1000), 6, RoundingMode.HALF_UP));
+            }
+            if (!out.isEmpty()) {
+                return out;
+            }
+        }
+        return out;
+    }
+
+    /**
+     * 从 o_curinstrument 中取指定品种（如 au_f、ag_f）持仓量最大合约的结算价。
+     * au 报价单位 元/克，ag 报价单位 元/千克。
+     */
+    private BigDecimal parseSettlementPriceByProduct(String json, String productId) {
+        try {
+            ObjectMapper om = new ObjectMapper();
+            JsonNode dataArr = om.readTree(json).path("o_curinstrument");
+            if (dataArr.isMissingNode() || !dataArr.isArray()) {
+                return null;
+            }
+            long maxOi = 0;
+            BigDecimal settlement = null;
+            for (int i = 0; i < dataArr.size(); i++) {
+                JsonNode item = dataArr.get(i);
+                if (!productId.equals(item.path("PRODUCTID").asText("").trim())) {
+                    continue;
+                }
+                String deliveryMonth = item.path("DELIVERYMONTH").asText("").trim();
+                if (deliveryMonth.isEmpty() || "小计".equals(deliveryMonth)) {
+                    continue;
+                }
+                long oi = parseLong(item.path("OPENINTEREST").asText("0"));
+                if (oi <= 0) {
+                    continue;
+                }
+                String sp = item.path("SETTLEMENTPRICE").asText("").trim();
+                if (sp.isEmpty()) {
+                    continue;
+                }
+                BigDecimal price = parseBigDecimal(sp);
+                if (price == null) {
+                    continue;
+                }
+                if (oi > maxOi) {
+                    maxOi = oi;
+                    settlement = price;
+                }
+            }
+            return settlement;
+        } catch (Exception e) {
+            LOG.warn("解析上期所 au/ag 结算价失败: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    private static BigDecimal parseBigDecimal(String s) {
+        if (s == null) {
+            return null;
+        }
+        s = s.replace(",", "").replace("，", "").trim();
+        if (s.isEmpty()) {
+            return null;
+        }
+        try {
+            return new BigDecimal(s);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     private String fetchJson(String url) {

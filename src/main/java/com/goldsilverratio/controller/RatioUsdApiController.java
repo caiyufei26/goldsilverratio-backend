@@ -1,8 +1,8 @@
 package com.goldsilverratio.controller;
 
 import com.goldsilverratio.common.Result;
-import com.goldsilverratio.service.RatioApiService;
-import com.goldsilverratio.service.RatioFetcher;
+import com.goldsilverratio.service.RatioUsdApiService;
+import com.goldsilverratio.service.RatioUsdFetcher;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -14,29 +14,28 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 金银比 API：按日期写入、分页列表。
+ * 美元计价金银比 API：按日期拉取（GoldAPI）、按日期写入、分页/按月列表。
+ * 不参与一键同步，仅本模块单独同步。
  */
 @RestController
-@RequestMapping("/api/ratio")
-public class RatioApiController {
+@RequestMapping("/api/ratio-usd")
+public class RatioUsdApiController {
 
-    private final RatioApiService ratioApiService;
-    private final RatioFetcher ratioFetcher;
+    private final RatioUsdApiService ratioUsdApiService;
+    private final RatioUsdFetcher ratioUsdFetcher;
 
-    public RatioApiController(RatioApiService ratioApiService, RatioFetcher ratioFetcher) {
-        this.ratioApiService = ratioApiService;
-        this.ratioFetcher = ratioFetcher;
+    public RatioUsdApiController(RatioUsdApiService ratioUsdApiService,
+                                 RatioUsdFetcher ratioUsdFetcher) {
+        this.ratioUsdApiService = ratioUsdApiService;
+        this.ratioUsdFetcher = ratioUsdFetcher;
     }
 
     /**
-     * 按日期从上期所拉取金银比并保存。不传 date 则拉取当日（按交易日折算）。
-     *
-     * @param date 可选，yyyyMMdd
-     * @return 成功为 data 描述，失败为 message
+     * 按日期从 GoldAPI 拉取并保存。不传 date 则拉取当日。
      */
     @PostMapping("/fetch-date")
     public Result<String> fetchDate(@RequestParam(value = "date", required = false) String date) {
-        String msg = ratioFetcher.fetchAndSave(date);
+        String msg = ratioUsdFetcher.fetchAndSave(date);
         if (msg != null && msg.startsWith("已保存")) {
             return Result.ok(msg);
         }
@@ -44,21 +43,17 @@ public class RatioApiController {
     }
 
     /**
-     * 按月份拉取金银比：遍历该月每个交易日逐日从上期所拉取并保存。
-     *
-     * @param year  年
-     * @param month 月
-     * @return 成功为 data 汇总信息，如 "已保存 22 个交易日，0 失败"
+     * 按月份逐日从 GoldAPI 拉取并保存。
      */
     @PostMapping("/fetch-month")
     public Result<String> fetchMonth(@RequestParam("year") int year,
                                     @RequestParam("month") int month) {
-        String msg = ratioFetcher.fetchMonth(year, month);
+        String msg = ratioUsdFetcher.fetchMonth(year, month);
         return Result.ok(msg);
     }
 
     /**
-     * 按日期保存一条金银比。body: { "gold": number, "silver": number, "date": "yyyyMMdd" }
+     * 手动录入一条。body: { "gold": number, "silver": number, "date": "yyyyMMdd" }
      */
     @PostMapping("/feed")
     public Result<Void> feed(@RequestBody Map<String, Object> body) {
@@ -78,7 +73,7 @@ public class RatioApiController {
             return Result.fail(400, "gold/silver 须为有效正数");
         }
         try {
-            ratioApiService.saveByDate(gold, silver, dateStr);
+            ratioUsdApiService.saveByDate(gold, silver, dateStr);
             return Result.ok();
         } catch (Exception e) {
             return Result.fail(500, e.getMessage());
@@ -86,8 +81,7 @@ public class RatioApiController {
     }
 
     /**
-     * 列表。若传 year、month 则按该月筛选（按日期升序）；否则分页全量倒序。
-     * 返回 data: [{ recordDate, goldPrice, silverPrice, ratio }]
+     * 列表。传 year、month 时按该月筛选；否则分页。
      */
     @GetMapping("/list")
     public Result<List<Map<String, Object>>> list(
@@ -97,9 +91,9 @@ public class RatioApiController {
             @RequestParam(value = "month", required = false) Integer month) {
         List<Map<String, Object>> data;
         if (year != null && month != null) {
-            data = ratioApiService.listByMonth(year, month);
+            data = ratioUsdApiService.listByMonth(year, month);
         } else {
-            data = ratioApiService.listPage(page, size);
+            data = ratioUsdApiService.listPage(page, size);
         }
         return Result.ok(data);
     }

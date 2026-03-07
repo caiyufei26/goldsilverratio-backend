@@ -1,53 +1,40 @@
 package com.goldsilverratio.service.impl;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.goldsilverratio.config.NoSniSSLSocketFactory;
 import com.goldsilverratio.service.RatioApiService;
 import com.goldsilverratio.service.RatioFetcher;
+import com.goldsilverratio.service.ShfeTradeDailyFetcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLSocketFactory;
-import java.io.InputStream;
 import java.math.BigDecimal;
-import java.net.URL;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
 
 /**
- * 从 GoldAPI 拉取指定日期金价、银价并保存为金银比。
- * 使用 NoSniSSLSocketFactory 避免 Java 访问 goldapi.io 时的 SSL 握手失败。
+ * 从上期所拉取指定日期黄金(au)、白银(ag)主力合约结算价并保存为金银比。
+ * 数据源：上期所每日行情 kx 数据，金价、银价单位统一为 元/克。
  */
 @Service
 public class RatioFetcherImpl implements RatioFetcher {
 
     private static final Logger LOG = LoggerFactory.getLogger(RatioFetcherImpl.class);
-    private static final String GOLDAPI_BASE = "https://www.goldapi.io/api";
     private static final DateTimeFormatter YYYYMMDD = DateTimeFormatter.ofPattern("yyyyMMdd");
-    private static final SSLSocketFactory NO_SNI_SSL =
-            new NoSniSSLSocketFactory((SSLSocketFactory) SSLSocketFactory.getDefault());
 
     private final RatioApiService ratioApiService;
-    private final ObjectMapper objectMapper;
+    private final ShfeTradeDailyFetcher shfeTradeDailyFetcher;
 
-    @Value("${app.goldapi.token:}")
-    private String goldapiToken;
-
-    public RatioFetcherImpl(RatioApiService ratioApiService, ObjectMapper objectMapper) {
+    public RatioFetcherImpl(RatioApiService ratioApiService,
+                            ShfeTradeDailyFetcher shfeTradeDailyFetcher) {
         this.ratioApiService = ratioApiService;
-        this.objectMapper = objectMapper;
+        this.shfeTradeDailyFetcher = shfeTradeDailyFetcher;
     }
 
     @Override
     public String fetchAndSave(String dateStr) {
-        if (goldapiToken == null || goldapiToken.trim().isEmpty()) {
-            return "未配置 GoldAPI Token（请设置 app.goldapi.token 或 GOLDAPI_TOKEN）";
-        }
         LocalDate date;
         if (dateStr == null || dateStr.trim().isEmpty()) {
             date = LocalDate.now();
@@ -61,22 +48,49 @@ public class RatioFetcherImpl implements RatioFetcher {
         LocalDate tradeDate = toTradeDate(date);
         String tradeDateStr = tradeDate.format(YYYYMMDD);
 
-        String goldUrl = GOLDAPI_BASE + "/XAU/USD/" + tradeDateStr;
-        String silverUrl = GOLDAPI_BASE + "/XAG/USD/" + tradeDateStr;
-
         try {
-            BigDecimal gold = fetchPrice(goldUrl);
-            BigDecimal silver = fetchPrice(silverUrl);
+            Map<String, BigDecimal> prices = shfeTradeDailyFetcher.fetchAuAgSettlementPrices(tradeDate);
+            BigDecimal gold = prices.get("au");
+            BigDecimal silver = prices.get("ag");
             if (gold == null || silver == null || silver.compareTo(BigDecimal.ZERO) <= 0) {
-                return "GoldAPI 返回中未解析到有效金价/银价";
+                return "上期所该日无有效黄金/白银结算价（可能非交易日或数据未发布）";
             }
             ratioApiService.saveByDate(gold, silver, tradeDateStr);
-            LOG.info("金银比已拉取并保存: {} 金={} 银={}", tradeDateStr, gold, silver);
+            LOG.info("金银比已拉取并保存: {} 金={} 银={} 元/克", tradeDateStr, gold, silver);
             return "已保存 " + tradeDateStr;
         } catch (Exception e) {
             LOG.warn("金银比拉取失败: {}", e.getMessage());
             return "拉取失败: " + e.getMessage();
         }
+    }
+
+    @Override
+    public String fetchMonth(int year, int month) {
+        YearMonth ym = YearMonth.of(year, month);
+        LocalDate today = LocalDate.now();
+        LocalDate end = ym.atEndOfMonth();
+        if (end.isAfter(today)) {
+            end = today;
+        }
+        int ok = 0;
+        int fail = 0;
+        LocalDate day = ym.atDay(1);
+        while (!day.isAfter(end)) {
+            DayOfWeek dow = day.getDayOfWeek();
+            if (dow == DayOfWeek.SATURDAY || dow == DayOfWeek.SUNDAY) {
+                day = day.plusDays(1);
+                continue;
+            }
+            String dateStr = day.format(YYYYMMDD);
+            String msg = fetchAndSave(dateStr);
+            if (msg != null && msg.startsWith("已保存")) {
+                ok++;
+            } else {
+                fail++;
+            }
+            day = day.plusDays(1);
+        }
+        return String.format("已保存 %d 个交易日，%d 失败", ok, fail);
     }
 
     private static LocalDate toTradeDate(LocalDate d) {
@@ -88,49 +102,5 @@ public class RatioFetcherImpl implements RatioFetcher {
             return d.minusDays(1);
         }
         return d;
-    }
-
-    @SuppressWarnings("unchecked")
-    private BigDecimal fetchPrice(String urlStr) throws Exception {
-        URL url = new URL(urlStr);
-        HttpsURLConnection conn = (HttpsURLConnection) url.openConnection();
-        conn.setSSLSocketFactory(NO_SNI_SSL);
-        conn.setRequestMethod("GET");
-        conn.setRequestProperty("x-access-token", goldapiToken);
-        conn.setConnectTimeout(20000);
-        conn.setReadTimeout(35000);
-        Map<String, Object> body;
-        try (InputStream in = conn.getInputStream()) {
-            body = objectMapper.readValue(in, Map.class);
-        } finally {
-            conn.disconnect();
-        }
-        if (body == null) {
-            return null;
-        }
-        Object v = body.get("price");
-        if (v == null) {
-            v = body.get("close");
-        }
-        if (v == null) {
-            v = body.get("ask");
-        }
-        if (v == null) {
-            v = body.get("last");
-        }
-        if (v == null) {
-            v = body.get("rate");
-        }
-        if (v == null) {
-            return null;
-        }
-        if (v instanceof Number) {
-            return BigDecimal.valueOf(((Number) v).doubleValue());
-        }
-        try {
-            return new BigDecimal(v.toString().trim());
-        } catch (NumberFormatException e) {
-            return null;
-        }
     }
 }

@@ -1,6 +1,7 @@
 package com.goldsilverratio.schedule;
 
 import com.goldsilverratio.service.DollarIndexApiService;
+import com.goldsilverratio.service.RatioFetcher;
 import com.goldsilverratio.service.SilverInventoryApiService;
 import com.goldsilverratio.service.ShfeTradeDailyApiService;
 import org.slf4j.Logger;
@@ -11,10 +12,11 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDate;
 
 /**
- * 数据同步定时任务：每日 17:30（上海时区）自动拉取本月数据，与「数据同步-同步该月数据」一致（不含金银比）：
- * 1）上期所本月交易数据（白银、燃油等）；
- * 2）上期所本月仓单库存（白银+燃油）；
- * 3）本月美元指数。
+ * 数据同步定时任务：每日 17:30（上海时区）自动拉取，与「数据同步-同步该月数据」一致：
+ * 1）当日金银比（上期所 au/ag 结算价）；
+ * 2）上期所本月交易数据（白银、燃油等）；
+ * 3）上期所本月仓单库存（白银+燃油）；
+ * 4）本月美元指数。
  */
 @Component
 public class ShfeTradeDailySchedule {
@@ -24,13 +26,16 @@ public class ShfeTradeDailySchedule {
     private final ShfeTradeDailyApiService shfeTradeDailyApiService;
     private final SilverInventoryApiService silverInventoryApiService;
     private final DollarIndexApiService dollarIndexApiService;
+    private final RatioFetcher ratioFetcher;
 
     public ShfeTradeDailySchedule(ShfeTradeDailyApiService shfeTradeDailyApiService,
                                   SilverInventoryApiService silverInventoryApiService,
-                                  DollarIndexApiService dollarIndexApiService) {
+                                  DollarIndexApiService dollarIndexApiService,
+                                  RatioFetcher ratioFetcher) {
         this.shfeTradeDailyApiService = shfeTradeDailyApiService;
         this.silverInventoryApiService = silverInventoryApiService;
         this.dollarIndexApiService = dollarIndexApiService;
+        this.ratioFetcher = ratioFetcher;
     }
 
     @Scheduled(cron = "0 30 17 * * ?", zone = "Asia/Shanghai")
@@ -38,6 +43,14 @@ public class ShfeTradeDailySchedule {
         LocalDate now = LocalDate.now();
         int year = now.getYear();
         int month = now.getMonthValue();
+
+        LOG.info("定时任务：开始自动拉取当日金银比");
+        try {
+            String ratioMsg = ratioFetcher.fetchAndSave(null);
+            LOG.info("定时任务：金银比拉取完成 {}", ratioMsg);
+        } catch (Exception e) {
+            LOG.error("定时任务：金银比拉取失败", e);
+        }
 
         LOG.info("定时任务：开始自动更新上期所本月交易数据 {}年{}月", year, month);
         try {

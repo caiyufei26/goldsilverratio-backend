@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>金银比</title>
+  <title>美元计价金银比</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -39,17 +39,6 @@
     .status.loading { color: #f0c14b; }
     .status.error { color: #e57373; }
     .card.feed h2 { font-size: 1rem; color: #a0a0a0; margin: 0 0 16px 0; font-weight: 500; }
-    .hint { color: #888; font-size: 0.8rem; margin-bottom: 12px; line-height: 1.4; }
-    .btn.primary {
-      background: rgba(240, 193, 75, 0.25);
-      color: #f0c14b;
-      border-color: rgba(240, 193, 75, 0.5);
-      width: 100%;
-      margin-top: 8px;
-    }
-    .btn.primary:hover { background: rgba(240, 193, 75, 0.35); }
-    .form-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-    .form-row label { width: 100px; color: #a0a0a0; font-size: 0.9rem; }
     .form-row-month {
       display: flex;
       align-items: center;
@@ -78,16 +67,6 @@
       background: #16213e;
       color: #fff;
     }
-    .form-row input {
-      flex: 1;
-      max-width: 160px;
-      padding: 10px 12px;
-      border: 1px solid rgba(255,255,255,0.15);
-      border-radius: 8px;
-      background: rgba(255,255,255,0.06);
-      color: #fff;
-      font-size: 1rem;
-    }
     .table-wrap { overflow-x: auto; margin-top: 12px; }
     table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
     th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.08); }
@@ -101,8 +80,8 @@
 </head>
 <body>
   <div class="container">
-    <h1>金银比</h1>
-    <p class="subtitle">Gold / Silver Ratio · 数据来源：上期所 · 元/克</p>
+    <h1>美元计价金银比</h1>
+    <p class="subtitle">Gold / Silver Ratio (USD) · 数据来源：GoldAPI · 美元/盎司</p>
 
     <div class="card feed">
       <h2>每日金银比</h2>
@@ -122,8 +101,8 @@
           <thead>
             <tr>
               <th>数据日期</th>
-              <th>金价 (元/克)</th>
-              <th>银价 (元/克)</th>
+              <th>金价 (USD/oz)</th>
+              <th>银价 (USD/oz)</th>
               <th>金银比</th>
             </tr>
           </thead>
@@ -230,7 +209,7 @@
         listStatus.className = 'status loading';
         var year = listYear.value;
         var month = listMonth.value;
-        var url = '/api/ratio/list?year=' + encodeURIComponent(year) + '&month=' + encodeURIComponent(month);
+        var url = '/api/ratio-usd/list?year=' + encodeURIComponent(year) + '&month=' + encodeURIComponent(month);
         fetch(url)
           .then(function (res) { return res.json(); })
           .then(function (result) {
@@ -238,7 +217,7 @@
             listStatus.className = 'status';
             var list = (result && result.data) ? result.data : [];
             if (list.length === 0) {
-              ratioTableBody.innerHTML = '<tr><td colspan="4" class="empty-tip">暂无数据，请到<a href="/shfe-fetch-data.html" style="color:#f0c14b;">数据同步</a>页获取</td></tr>';
+              ratioTableBody.innerHTML = '<tr><td colspan="4" class="empty-tip">暂无数据，请到<a href="/shfe-fetch-data.html" style="color:#f0c14b;">数据同步</a>页同步美元计价金银比</td></tr>';
               updateChart([]);
               return;
             }

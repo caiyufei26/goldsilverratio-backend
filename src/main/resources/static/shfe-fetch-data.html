@@ -85,11 +85,11 @@
 <body>
   <div class="container">
     <h1>数据同步</h1>
-    <p class="subtitle">库存 · 交易数据 · 美元指数 · 按月份同步 · 每日 17:30 自动执行本月</p>
+    <p class="subtitle">金银比 · 库存 · 交易数据 · 美元指数 · 按月份同步 · 每日 17:30 自动执行本月</p>
 
     <div class="card">
       <h2>一键同步全部</h2>
-      <p class="hint">选择月份后同步该月的：上期所交易数据与库存（白银+燃油）、美元指数。默认本月。</p>
+      <p class="hint">选择月份后同步该月的：金银比（按该月每个交易日逐日拉取）、上期所交易数据与库存（白银+燃油）、美元指数。默认本月。</p>
       <div class="form-row-month">
         <label>按月份</label>
         <div class="month-select-wrap">
@@ -101,11 +101,30 @@
       <div class="status" id="syncAllStatus"></div>
     </div>
 
+    <div class="card">
+      <h2>美元计价金银比（独立同步，不参与一键）</h2>
+      <p class="hint">从 GoldAPI 拉取 XAU/USD、XAG/USD，需配置 app.goldapi.token。可按日或按月拉取。</p>
+      <div class="form-row-month">
+        <label>按日</label>
+        <button type="button" class="btn" id="btnRatioUsdToday">拉取当日</button>
+      </div>
+      <div class="form-row-month">
+        <label>按月份</label>
+        <div class="month-select-wrap">
+          <select id="ratioUsdYear"></select><span>年</span>
+          <select id="ratioUsdMonth"></select><span>月</span>
+        </div>
+      </div>
+      <button type="button" class="btn" id="btnRatioUsdMonth">同步该月</button>
+      <div class="status" id="ratioUsdStatus"></div>
+    </div>
+
     <p style="text-align:center;margin-top:24px;">
       <a href="/" style="color:#64748b;font-size:0.9rem;">返回首页</a>
     </p>
     <p class="links" style="text-align:center;">
       <a href="/ratio.html">金银比</a>
+      <a href="/ratio-usd.html">美元计价金银比</a>
       <a href="/dollar-index.html">美元指数</a>
       <a href="/shfe-trade-daily.html">白银每日交易数据</a>
       <a href="/shfe-trade-daily.html?product=fu">燃油每日交易数据</a>
@@ -142,12 +161,54 @@
       var btnSyncAll = document.getElementById('btnSyncAll');
       populateYearMonth(syncYear, syncMonth);
 
+      var ratioUsdYear = document.getElementById('ratioUsdYear');
+      var ratioUsdMonth = document.getElementById('ratioUsdMonth');
+      var ratioUsdStatus = document.getElementById('ratioUsdStatus');
+      var btnRatioUsdToday = document.getElementById('btnRatioUsdToday');
+      var btnRatioUsdMonth = document.getElementById('btnRatioUsdMonth');
+      if (ratioUsdYear && ratioUsdMonth) populateYearMonth(ratioUsdYear, ratioUsdMonth);
+
+      if (btnRatioUsdToday) {
+        btnRatioUsdToday.addEventListener('click', function () {
+          ratioUsdStatus.textContent = '拉取中…';
+          ratioUsdStatus.className = 'status loading';
+          fetch('/api/ratio-usd/fetch-date', { method: 'POST' })
+            .then(function (r) { return r.json(); })
+            .then(function (res) {
+              ratioUsdStatus.textContent = (res && res.code === 200) ? (res.data || '已保存') : (res.message || '失败');
+              ratioUsdStatus.className = 'status' + (res && res.code === 200 ? '' : ' error');
+            })
+            .catch(function (err) {
+              ratioUsdStatus.textContent = '失败：' + (err.message || '网络错误');
+              ratioUsdStatus.className = 'status error';
+            });
+        });
+      }
+      if (btnRatioUsdMonth) {
+        btnRatioUsdMonth.addEventListener('click', function () {
+          var y = parseInt(ratioUsdYear.value, 10);
+          var m = parseInt(ratioUsdMonth.value, 10);
+          ratioUsdStatus.textContent = '按月考取中…';
+          ratioUsdStatus.className = 'status loading';
+          fetch('/api/ratio-usd/fetch-month?year=' + y + '&month=' + m, { method: 'POST' })
+            .then(function (r) { return r.json(); })
+            .then(function (res) {
+              ratioUsdStatus.textContent = (res && res.code === 200) ? (res.data || '已保存') : (res.message || '失败');
+              ratioUsdStatus.className = 'status' + (res && res.code === 200 ? '' : ' error');
+            })
+            .catch(function (err) {
+              ratioUsdStatus.textContent = '失败：' + (err.message || '网络错误');
+              ratioUsdStatus.className = 'status error';
+            });
+        });
+      }
+
       btnSyncAll.addEventListener('click', function () {
         var year = parseInt(syncYear.value, 10);
         var month = parseInt(syncMonth.value, 10);
 
         btnSyncAll.disabled = true;
-        syncAllStatus.textContent = '正在拉取该月交易数据…';
+        syncAllStatus.textContent = '正在拉取该月金银比（按交易日逐日）…';
         syncAllStatus.className = 'status loading';
 
         function setResult(ok, text) {
@@ -156,25 +217,32 @@
           syncAllStatus.className = 'status' + (ok ? '' : ' error');
         }
 
-        fetch('/api/shfe-trade/fetch-month?year=' + year + '&month=' + month)
-          .then(function (r) { return r.json(); })
-          .then(function (tradeResult) {
-            var tradeOk = tradeResult && tradeResult.code === 200;
-            var tradeText = tradeOk ? (tradeResult.data || '已保存') : (tradeResult.message || '失败');
-            syncAllStatus.textContent = '交易数据: ' + tradeText + '\n正在拉取该月库存…';
-            return fetch('/api/silver-inventory/fetch-month?year=' + year + '&month=' + month)
-              .then(function (r2) { return r2.json(); })
-              .then(function (invResult) {
-                var invOk = invResult && invResult.code === 200;
-                var invText = invOk ? (invResult.data || invResult.message || '已保存') : (invResult.message || '失败');
-                syncAllStatus.textContent = '交易数据: ' + tradeText + '\n库存: ' + invText + '\n正在拉取该月美元指数…';
-                return fetch('/api/dollar-index/fetch-month?year=' + year + '&month=' + month)
-                  .then(function (r3) { return r3.json(); })
-                  .then(function (dxyResult) {
-                    var dxyOk = dxyResult && dxyResult.code === 200;
-                    var dxyText = dxyOk ? (dxyResult.data || '已保存') : (dxyResult.message || '失败');
-                    var allOk = tradeOk && invOk && dxyOk;
-                    setResult(allOk, '交易数据: ' + tradeText + '\n库存: ' + invText + '\n美元指数: ' + dxyText);
+        fetch('/api/ratio/fetch-month?year=' + year + '&month=' + month, { method: 'POST' })
+          .then(function (res) { return res.json(); })
+          .then(function (ratioResult) {
+            var ratioOk = ratioResult && ratioResult.code === 200;
+            var ratioText = ratioOk ? (ratioResult.data || '已保存') : (ratioResult.message || '金银比拉取失败');
+            syncAllStatus.textContent = '金银比: ' + ratioText + '\n正在拉取该月交易数据…';
+            return fetch('/api/shfe-trade/fetch-month?year=' + year + '&month=' + month)
+              .then(function (r) { return r.json(); })
+              .then(function (tradeResult) {
+                var tradeOk = tradeResult && tradeResult.code === 200;
+                var tradeText = tradeOk ? (tradeResult.data || '已保存') : (tradeResult.message || '失败');
+                syncAllStatus.textContent = '金银比: ' + ratioText + '\n交易数据: ' + tradeText + '\n正在拉取该月库存…';
+                return fetch('/api/silver-inventory/fetch-month?year=' + year + '&month=' + month)
+                  .then(function (r2) { return r2.json(); })
+                  .then(function (invResult) {
+                    var invOk = invResult && invResult.code === 200;
+                    var invText = invOk ? (invResult.data || invResult.message || '已保存') : (invResult.message || '失败');
+                    syncAllStatus.textContent = '金银比: ' + ratioText + '\n交易数据: ' + tradeText + '\n库存: ' + invText + '\n正在拉取该月美元指数…';
+                    return fetch('/api/dollar-index/fetch-month?year=' + year + '&month=' + month)
+                      .then(function (r3) { return r3.json(); })
+                      .then(function (dxyResult) {
+                        var dxyOk = dxyResult && dxyResult.code === 200;
+                        var dxyText = dxyOk ? (dxyResult.data || '已保存') : (dxyResult.message || '失败');
+                        var allOk = ratioOk && tradeOk && invOk && dxyOk;
+                        setResult(allOk, '金银比: ' + ratioText + '\n交易数据: ' + tradeText + '\n库存: ' + invText + '\n美元指数: ' + dxyText);
+                      });
                   });
               });
           })

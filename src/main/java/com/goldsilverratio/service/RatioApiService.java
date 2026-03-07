@@ -22,4 +22,9 @@ public interface RatioApiService {
      * 分页列表，每项含 recordDate(yyyyMMdd)、goldPrice、silverPrice、ratio。
      */
     List<Map<String, Object>> listPage(int page, int size);
+
+    /**
+     * 按年月列表，每项含 recordDate、goldPrice、silverPrice、ratio，按日期升序。
+     */
+    List<Map<String, Object>> listByMonth(int year, int month);
 }

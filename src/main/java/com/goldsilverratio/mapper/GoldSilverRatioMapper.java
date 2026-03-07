@@ -4,6 +4,7 @@ import com.goldsilverratio.entity.GoldSilverRatio;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -27,6 +28,12 @@ public interface GoldSilverRatioMapper {
      */
     List<GoldSilverRatio> selectPage(@Param("offset") int offset,
                                      @Param("size") int size);
+
+    /**
+     * 按日期范围查询（闭区间），按 record_date 升序（便于图表展示）。
+     */
+    List<GoldSilverRatio> selectByMonth(@Param("start") LocalDate start,
+                                        @Param("end") LocalDate end);
 
     /**
      * 删除指定日期（yyyyMMdd）当天的记录，用于“同日期覆盖”。

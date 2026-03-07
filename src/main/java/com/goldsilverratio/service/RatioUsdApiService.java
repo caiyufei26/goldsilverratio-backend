@@ -11,8 +11,10 @@ public interface RatioUsdApiService {
 
     /**
      * 按日期覆盖保存一条（金价、银价单位：美元/盎司）。
+     *
+     * @param dataSource 数据来源：goldapi、jisuapi、manual
      */
-    void saveByDate(BigDecimal gold, BigDecimal silver, String dateStr);
+    void saveByDate(BigDecimal gold, BigDecimal silver, String dateStr, String dataSource);
 
     /**
      * 指定日期是否已有数据（有则无需再请求接口）。

@@ -33,6 +33,12 @@ public class RatioUsdFetcherImpl implements RatioUsdFetcher {
     @Value("${app.goldapi.token:}")
     private String goldApiToken;
 
+    @Value("${app.jisuapi.appkey:}")
+    private String jisuApiAppkey;
+
+    private static final String JISUAPI_GOLD_LONDON = "https://api.jisuapi.com/gold/london";
+    private static final String JISUAPI_SILVER_LONDON = "https://api.jisuapi.com/silver/london";
+
     private final RatioUsdApiService ratioUsdApiService;
 
     public RatioUsdFetcherImpl(RatioUsdApiService ratioUsdApiService) {
@@ -63,14 +69,30 @@ public class RatioUsdFetcherImpl implements RatioUsdFetcher {
         }
 
         try {
-            BigDecimal gold = fetchPrice(XAU_USD, dateParam);
-            BigDecimal silver = fetchPrice(XAG_USD, dateParam);
-            if (gold == null || silver == null || silver.compareTo(BigDecimal.ZERO) <= 0) {
-                return "GoldAPI 该日无有效金价/银价";
+            BigDecimal gold = fetchPriceFromGoldApi(XAU_USD, dateParam);
+            if (gold == null) {
+                // 金价失败（如超限）不再请求银价，直接降级极速数据，避免多一次失败请求
+                BigDecimal[] jisu = fetchGoldSilverFromJisuapi();
+                if (jisu != null && jisu[0] != null && jisu[1] != null && jisu[1].compareTo(BigDecimal.ZERO) > 0) {
+                    ratioUsdApiService.saveByDate(jisu[0], jisu[1], dateParam, "jisuapi");
+                    LOG.info("美元计价金银比已保存(极速数据降级): {} 金={} 银={} USD/oz", dateParam, jisu[0], jisu[1]);
+                    return "已保存 " + dateParam + " (极速数据)";
+                }
+                return "GoldAPI 无数据且极速数据不可用或未配置 app.jisuapi.appkey";
             }
-            ratioUsdApiService.saveByDate(gold, silver, dateParam);
-            LOG.info("美元计价金银比已保存: {} 金={} 银={} USD/oz", dateParam, gold, silver);
-            return "已保存 " + dateParam;
+            BigDecimal silver = fetchPriceFromGoldApi(XAG_USD, dateParam);
+            if (silver != null && silver.compareTo(BigDecimal.ZERO) > 0) {
+                ratioUsdApiService.saveByDate(gold, silver, dateParam, "goldapi");
+                LOG.info("美元计价金银比已保存(GoldAPI): {} 金={} 银={} USD/oz", dateParam, gold, silver);
+                return "已保存 " + dateParam;
+            }
+            BigDecimal[] jisu = fetchGoldSilverFromJisuapi();
+            if (jisu != null && jisu[0] != null && jisu[1] != null && jisu[1].compareTo(BigDecimal.ZERO) > 0) {
+                ratioUsdApiService.saveByDate(jisu[0], jisu[1], dateParam, "jisuapi");
+                LOG.info("美元计价金银比已保存(极速数据降级): {} 金={} 银={} USD/oz", dateParam, jisu[0], jisu[1]);
+                return "已保存 " + dateParam + " (极速数据)";
+            }
+            return "GoldAPI 无数据且极速数据不可用或未配置 app.jisuapi.appkey";
         } catch (Exception e) {
             LOG.warn("美元计价金银比拉取失败: {}", e.getMessage());
             return "拉取失败: " + e.getMessage();
@@ -105,23 +127,121 @@ public class RatioUsdFetcherImpl implements RatioUsdFetcher {
     }
 
     /**
-     * 仅通过 curl 请求 GoldAPI，不 fallback 到 Java，避免阻塞与重试。
+     * 仅通过 curl 请求 GoldAPI 单品种价格。
      */
-    private BigDecimal fetchPrice(String metalCurrency, String dateYyyyMmDd) throws Exception {
+    private BigDecimal fetchPriceFromGoldApi(String metalCurrency, String dateYyyyMmDd) {
         String urlStr = GOLDAPI_BASE + "/" + metalCurrency + "/" + dateYyyyMmDd;
         String json = getWithTokenViaCurl(urlStr);
         if (json == null || json.isEmpty()) {
             return null;
         }
-        ObjectMapper om = new ObjectMapper();
-        JsonNode root = om.readTree(json);
-        double price = root.has("price") && !root.path("price").isMissingNode()
-                ? root.get("price").asDouble()
-                : root.path("ask").asDouble(0);
-        if (price <= 0) {
+        try {
+            ObjectMapper om = new ObjectMapper();
+            JsonNode root = om.readTree(json);
+            double price = root.has("price") && !root.path("price").isMissingNode()
+                    ? root.get("price").asDouble()
+                    : root.path("ask").asDouble(0);
+            if (price <= 0) {
+                return null;
+            }
+            return BigDecimal.valueOf(price);
+        } catch (Exception e) {
+            LOG.warn("解析 GoldAPI 响应失败: {}", e.getMessage());
             return null;
         }
-        return BigDecimal.valueOf(price);
+    }
+
+    /**
+     * 极速数据伦敦金、银价格（当前价，无历史日期）。GoldAPI 超限时降级用。
+     * 返回 [金价, 银价] 或 null。金取自 gold/london 的「伦敦金」，银取自 silver/london 的「白银美元」。
+     */
+    private BigDecimal[] fetchGoldSilverFromJisuapi() {
+        if (jisuApiAppkey == null || jisuApiAppkey.isEmpty()) {
+            return null;
+        }
+        String goldJson = getJisuapiViaCurl(JISUAPI_GOLD_LONDON);
+        String silverJson = getJisuapiViaCurl(JISUAPI_SILVER_LONDON);
+        if (goldJson == null || silverJson == null) {
+            return null;
+        }
+        ObjectMapper om = new ObjectMapper();
+        try {
+            JsonNode goldRoot = om.readTree(goldJson);
+            if (goldRoot.path("status").asInt(-1) != 0) {
+                LOG.warn("极速数据金价返回异常: {}", goldRoot.path("msg").asText(""));
+                return null;
+            }
+            BigDecimal goldPrice = parseJisuapiPrice(goldRoot.path("result"), "伦敦金");
+            JsonNode silverRoot = om.readTree(silverJson);
+            if (silverRoot.path("status").asInt(-1) != 0) {
+                LOG.warn("极速数据银价返回异常: {}", silverRoot.path("msg").asText(""));
+                return null;
+            }
+            BigDecimal silverPrice = parseJisuapiPrice(silverRoot.path("result"), "白银美元");
+            if (goldPrice == null || silverPrice == null) {
+                return null;
+            }
+            return new BigDecimal[]{goldPrice, silverPrice};
+        } catch (Exception e) {
+            LOG.warn("解析极速数据响应失败: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    private BigDecimal parseJisuapiPrice(JsonNode resultArray, String typeName) {
+        if (!resultArray.isArray()) {
+            return null;
+        }
+        for (JsonNode item : resultArray) {
+            if (typeName.equals(item.path("type").asText(null))) {
+                String priceStr = item.path("price").asText(null);
+                if (priceStr == null || priceStr.isEmpty()) {
+                    return null;
+                }
+                try {
+                    return new BigDecimal(priceStr.trim());
+                } catch (NumberFormatException e) {
+                    return null;
+                }
+            }
+        }
+        return null;
+    }
+
+    private String getJisuapiViaCurl(String baseUrl) {
+        String urlStr = baseUrl + (baseUrl.contains("?") ? "&" : "?") + "appkey=" + jisuApiAppkey;
+        try {
+            ProcessBuilder pb = new ProcessBuilder(
+                    "curl", "-s", "-m", "30",
+                    "-H", "User-Agent: Mozilla/5.0 (compatible; GoldSilverRatio/1.0)",
+                    urlStr
+            );
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
+            StringBuilder sb = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    sb.append(line);
+                }
+            }
+            if (!process.waitFor(35, TimeUnit.SECONDS)) {
+                process.destroyForcibly();
+                return null;
+            }
+            if (process.exitValue() != 0) {
+                return null;
+            }
+            String result = sb.toString().trim();
+            if (result.isEmpty()) {
+                return null;
+            }
+            return result;
+        } catch (Exception e) {
+            LOG.warn("极速数据请求失败 {}: {}", baseUrl, e.getMessage());
+            return null;
+        }
     }
 
     /**

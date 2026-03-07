@@ -35,9 +35,12 @@ public class RatioUsdApiServiceImpl implements RatioUsdApiService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void saveByDate(BigDecimal gold, BigDecimal silver, String dateStr) {
+    public void saveByDate(BigDecimal gold, BigDecimal silver, String dateStr, String dataSource) {
         if (gold == null || silver == null || silver.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("gold/silver invalid");
+        }
+        if (dataSource == null || dataSource.isEmpty()) {
+            dataSource = "goldapi";
         }
         BigDecimal ratio = gold.divide(silver, 4, RoundingMode.HALF_UP);
         LocalDate recordDate = LocalDate.parse(dateStr, YYYYMMDD);
@@ -51,6 +54,7 @@ public class RatioUsdApiServiceImpl implements RatioUsdApiService {
         record.setRatio(ratio);
         record.setRecordDate(recordDate);
         record.setRecordTime(recordTime);
+        record.setDataSource(dataSource);
         goldSilverRatioUsdMapper.insert(record);
     }
 
@@ -86,6 +90,7 @@ public class RatioUsdApiServiceImpl implements RatioUsdApiService {
             row.put("goldPrice", r.getGoldPrice());
             row.put("silverPrice", r.getSilverPrice());
             row.put("ratio", r.getRatio());
+            row.put("dataSource", r.getDataSource() != null ? r.getDataSource() : "goldapi");
             result.add(row);
         }
         return result;

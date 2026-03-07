@@ -104,6 +104,7 @@
               <th>金价 (USD/oz)</th>
               <th>银价 (USD/oz)</th>
               <th>金银比</th>
+              <th>数据来源</th>
             </tr>
           </thead>
           <tbody id="ratioTableBody"></tbody>
@@ -217,7 +218,7 @@
             listStatus.className = 'status';
             var list = (result && result.data) ? result.data : [];
             if (list.length === 0) {
-              ratioTableBody.innerHTML = '<tr><td colspan="4" class="empty-tip">暂无数据，请到<a href="/shfe-fetch-data.html" style="color:#f0c14b;">数据同步</a>页同步美元计价金银比</td></tr>';
+              ratioTableBody.innerHTML = '<tr><td colspan="5" class="empty-tip">暂无数据，请到<a href="/shfe-fetch-data.html" style="color:#f0c14b;">数据同步</a>页同步美元计价金银比</td></tr>';
               updateChart([]);
               return;
             }
@@ -226,7 +227,8 @@
               var gold = formatNum(row.goldPrice);
               var silver = formatNum(row.silverPrice);
               var ratio = formatNum(row.ratio);
-              return '<tr><td>' + date + '</td><td class="value-gold">' + gold + '</td><td class="value-silver">' + silver + '</td><td>' + ratio + '</td></tr>';
+              var src = row.dataSource === 'jisuapi' ? '极速数据' : (row.dataSource === 'manual' ? '手动' : 'GoldAPI');
+              return '<tr><td>' + date + '</td><td class="value-gold">' + gold + '</td><td class="value-silver">' + silver + '</td><td>' + ratio + '</td><td>' + src + '</td></tr>';
             }).join('');
             updateChart(list);
           })

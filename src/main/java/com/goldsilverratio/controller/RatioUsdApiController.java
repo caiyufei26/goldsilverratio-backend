@@ -36,7 +36,7 @@ public class RatioUsdApiController {
     @PostMapping("/fetch-date")
     public Result<String> fetchDate(@RequestParam(value = "date", required = false) String date) {
         String msg = ratioUsdFetcher.fetchAndSave(date);
-        if (msg != null && msg.startsWith("已保存")) {
+        if (msg != null && (msg.startsWith("已保存") || msg.startsWith("已跳过"))) {
             return Result.ok(msg);
         }
         return Result.fail(400, msg != null ? msg : "拉取失败");
@@ -73,7 +73,7 @@ public class RatioUsdApiController {
             return Result.fail(400, "gold/silver 须为有效正数");
         }
         try {
-            ratioUsdApiService.saveByDate(gold, silver, dateStr);
+            ratioUsdApiService.saveByDate(gold, silver, dateStr, "manual");
             return Result.ok();
         } catch (Exception e) {
             return Result.fail(500, e.getMessage());

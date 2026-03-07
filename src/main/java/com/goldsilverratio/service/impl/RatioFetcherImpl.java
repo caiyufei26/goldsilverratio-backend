@@ -45,6 +45,12 @@ public class RatioFetcherImpl implements RatioFetcher {
                 return "日期格式错误，应为 yyyyMMdd";
             }
         }
+        DayOfWeek dow = date.getDayOfWeek();
+        if (dow == DayOfWeek.SATURDAY || dow == DayOfWeek.SUNDAY) {
+            LOG.debug("周末不请求接口，跳过: {}", date.format(YYYYMMDD));
+            return "已跳过 " + date.format(YYYYMMDD) + " (周末)";
+        }
+
         LocalDate tradeDate = toTradeDate(date);
         String tradeDateStr = tradeDate.format(YYYYMMDD);
 

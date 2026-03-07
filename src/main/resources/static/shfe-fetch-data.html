@@ -78,6 +78,36 @@
       background: #1e293b;
       color: #fff;
     }
+    .form-row-date {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .form-row-date label { color: #94a3b8; font-size: 0.9rem; flex-shrink: 0; }
+    .form-row-date .date-select-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .form-row-date .date-select-wrap select {
+      padding: 10px 10px;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.06);
+      color: #fff;
+      font-size: 1rem;
+      min-width: 4.5em;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    .form-row-date .date-select-wrap select option {
+      background: #1e293b;
+      color: #fff;
+    }
+    .form-row-date .btn { flex-shrink: 0; margin-left: 4px; }
     .links { margin-top: 20px; font-size: 0.85rem; color: #64748b; }
     .links a { color: #94a3b8; margin-right: 12px; }
   </style>
@@ -104,9 +134,14 @@
     <div class="card">
       <h2>美元计价金银比（独立同步，不参与一键）</h2>
       <p class="hint">从 GoldAPI 拉取 XAU/USD、XAG/USD，需配置 app.goldapi.token。可按日或按月拉取。</p>
-      <div class="form-row-month">
+      <div class="form-row-date">
         <label>按日</label>
-        <button type="button" class="btn" id="btnRatioUsdToday">拉取当日</button>
+        <div class="date-select-wrap">
+          <select id="ratioUsdDateYear"></select><span>年</span>
+          <select id="ratioUsdDateMonth"></select><span>月</span>
+          <select id="ratioUsdDateDay"></select><span>日</span>
+        </div>
+        <button type="button" class="btn" id="btnRatioUsdDate">拉取该日</button>
       </div>
       <div class="form-row-month">
         <label>按月份</label>
@@ -161,18 +196,38 @@
       var btnSyncAll = document.getElementById('btnSyncAll');
       populateYearMonth(syncYear, syncMonth);
 
+      var ratioUsdDateYear = document.getElementById('ratioUsdDateYear');
+      var ratioUsdDateMonth = document.getElementById('ratioUsdDateMonth');
+      var ratioUsdDateDay = document.getElementById('ratioUsdDateDay');
       var ratioUsdYear = document.getElementById('ratioUsdYear');
       var ratioUsdMonth = document.getElementById('ratioUsdMonth');
       var ratioUsdStatus = document.getElementById('ratioUsdStatus');
-      var btnRatioUsdToday = document.getElementById('btnRatioUsdToday');
+      var btnRatioUsdDate = document.getElementById('btnRatioUsdDate');
       var btnRatioUsdMonth = document.getElementById('btnRatioUsdMonth');
       if (ratioUsdYear && ratioUsdMonth) populateYearMonth(ratioUsdYear, ratioUsdMonth);
+      if (ratioUsdDateYear && ratioUsdDateMonth) populateYearMonth(ratioUsdDateYear, ratioUsdDateMonth);
+      if (ratioUsdDateDay) {
+        var now = new Date();
+        for (var d = 1; d <= 31; d++) {
+          var opt = document.createElement('option');
+          opt.value = d;
+          opt.textContent = d;
+          ratioUsdDateDay.appendChild(opt);
+        }
+        ratioUsdDateDay.value = now.getDate();
+      }
 
-      if (btnRatioUsdToday) {
-        btnRatioUsdToday.addEventListener('click', function () {
+      if (btnRatioUsdDate) {
+        btnRatioUsdDate.addEventListener('click', function () {
+          var y = ratioUsdDateYear.value;
+          var m = ratioUsdDateMonth.value;
+          var d = ratioUsdDateDay.value;
+          if (m.length === 1) m = '0' + m;
+          if (d.length === 1) d = '0' + d;
+          var dateStr = y + m + d;
           ratioUsdStatus.textContent = '拉取中…';
           ratioUsdStatus.className = 'status loading';
-          fetch('/api/ratio-usd/fetch-date', { method: 'POST' })
+          fetch('/api/ratio-usd/fetch-date?date=' + encodeURIComponent(dateStr), { method: 'POST' })
             .then(function (r) { return r.json(); })
             .then(function (res) {
               ratioUsdStatus.textContent = (res && res.code === 200) ? (res.data || '已保存') : (res.message || '失败');

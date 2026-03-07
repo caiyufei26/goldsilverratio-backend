@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -50,6 +51,11 @@ public class DollarIndexApiServiceImpl implements DollarIndexApiService {
             }
             String dateStr = (String) d;
             if (dateStr.length() != 8) {
+                continue;
+            }
+            LocalDate rowDate = LocalDate.parse(dateStr, YYYYMMDD);
+            if (rowDate.getDayOfWeek() == DayOfWeek.SATURDAY
+                    || rowDate.getDayOfWeek() == DayOfWeek.SUNDAY) {
                 continue;
             }
             BigDecimal closePrice = toBigDecimal(c);

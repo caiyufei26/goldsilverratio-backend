@@ -121,6 +121,10 @@ public class SilverInventoryApiServiceImpl implements SilverInventoryApiService 
         int fuelSaved = 0;
         for (int day = 1; day <= lastDay; day++) {
             LocalDate d = ym.atDay(day);
+            if (d.getDayOfWeek() == java.time.DayOfWeek.SATURDAY
+                    || d.getDayOfWeek() == java.time.DayOfWeek.SUNDAY) {
+                continue;
+            }
             BigDecimal agKg = shfeInventoryFetcher.fetchByDate(d, PRODUCT_AG);
             if (agKg != null) {
                 saveByDate(d.format(YYYYMMDD), agKg);

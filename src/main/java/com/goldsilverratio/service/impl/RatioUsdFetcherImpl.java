@@ -13,6 +13,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.TimeUnit;
@@ -36,8 +37,8 @@ public class RatioUsdFetcherImpl implements RatioUsdFetcher {
     @Value("${app.jisuapi.appkey:}")
     private String jisuApiAppkey;
 
+    /** 极速数据伦敦金/银，一次返回 伦敦金、伦敦银 等，只请求此接口即可取金+银 */
     private static final String JISUAPI_GOLD_LONDON = "https://api.jisuapi.com/gold/london";
-    private static final String JISUAPI_SILVER_LONDON = "https://api.jisuapi.com/silver/london";
 
     private final RatioUsdApiService ratioUsdApiService;
 
@@ -68,17 +69,25 @@ public class RatioUsdFetcherImpl implements RatioUsdFetcher {
             return "已跳过 " + dateParam;
         }
 
+        DayOfWeek dow = date.getDayOfWeek();
+        if (dow == DayOfWeek.SATURDAY || dow == DayOfWeek.SUNDAY) {
+            LOG.debug("周末不请求接口，跳过: {}", dateParam);
+            return "已跳过 " + dateParam + " (周末)";
+        }
+
         try {
             BigDecimal gold = fetchPriceFromGoldApi(XAU_USD, dateParam);
             if (gold == null) {
-                // 金价失败（如超限）不再请求银价，直接降级极速数据，避免多一次失败请求
-                BigDecimal[] jisu = fetchGoldSilverFromJisuapi();
-                if (jisu != null && jisu[0] != null && jisu[1] != null && jisu[1].compareTo(BigDecimal.ZERO) > 0) {
-                    ratioUsdApiService.saveByDate(jisu[0], jisu[1], dateParam, "jisuapi");
-                    LOG.info("美元计价金银比已保存(极速数据降级): {} 金={} 银={} USD/oz", dateParam, jisu[0], jisu[1]);
-                    return "已保存 " + dateParam + " (极速数据)";
+                // 金价失败（如超限）不再请求银价；极速数据仅当日价，非当日不降级
+                if (date.equals(LocalDate.now())) {
+                    BigDecimal[] jisu = fetchGoldSilverFromJisuapi();
+                    if (jisu != null && jisu[0] != null && jisu[1] != null && jisu[1].compareTo(BigDecimal.ZERO) > 0) {
+                        ratioUsdApiService.saveByDate(jisu[0], jisu[1], dateParam, "jisuapi");
+                        LOG.info("美元计价金银比已保存(极速数据降级): {} 金={} 银={} USD/oz", dateParam, jisu[0], jisu[1]);
+                        return "已保存 " + dateParam + " (极速数据)";
+                    }
                 }
-                return "GoldAPI 无数据且极速数据不可用或未配置 app.jisuapi.appkey";
+                return "GoldAPI 无数据" + (date.equals(LocalDate.now()) ? "，极速数据不可用或未配置 app.jisuapi.appkey" : "，极速数据仅支持当日");
             }
             BigDecimal silver = fetchPriceFromGoldApi(XAG_USD, dateParam);
             if (silver != null && silver.compareTo(BigDecimal.ZERO) > 0) {
@@ -86,13 +95,15 @@ public class RatioUsdFetcherImpl implements RatioUsdFetcher {
                 LOG.info("美元计价金银比已保存(GoldAPI): {} 金={} 银={} USD/oz", dateParam, gold, silver);
                 return "已保存 " + dateParam;
             }
-            BigDecimal[] jisu = fetchGoldSilverFromJisuapi();
-            if (jisu != null && jisu[0] != null && jisu[1] != null && jisu[1].compareTo(BigDecimal.ZERO) > 0) {
-                ratioUsdApiService.saveByDate(jisu[0], jisu[1], dateParam, "jisuapi");
-                LOG.info("美元计价金银比已保存(极速数据降级): {} 金={} 银={} USD/oz", dateParam, jisu[0], jisu[1]);
-                return "已保存 " + dateParam + " (极速数据)";
+            if (date.equals(LocalDate.now())) {
+                BigDecimal[] jisu = fetchGoldSilverFromJisuapi();
+                if (jisu != null && jisu[0] != null && jisu[1] != null && jisu[1].compareTo(BigDecimal.ZERO) > 0) {
+                    ratioUsdApiService.saveByDate(jisu[0], jisu[1], dateParam, "jisuapi");
+                    LOG.info("美元计价金银比已保存(极速数据降级): {} 金={} 银={} USD/oz", dateParam, jisu[0], jisu[1]);
+                    return "已保存 " + dateParam + " (极速数据)";
+                }
             }
-            return "GoldAPI 无数据且极速数据不可用或未配置 app.jisuapi.appkey";
+            return "GoldAPI 无数据" + (date.equals(LocalDate.now()) ? "，极速数据不可用或未配置 app.jisuapi.appkey" : "，极速数据仅支持当日");
         } catch (Exception e) {
             LOG.warn("美元计价金银比拉取失败: {}", e.getMessage());
             return "拉取失败: " + e.getMessage();
@@ -153,31 +164,26 @@ public class RatioUsdFetcherImpl implements RatioUsdFetcher {
 
     /**
      * 极速数据伦敦金、银价格（当前价，无历史日期）。GoldAPI 超限时降级用。
-     * 返回 [金价, 银价] 或 null。金取自 gold/london 的「伦敦金」，银取自 silver/london 的「白银美元」。
+     * gold/london 一次返回 result 数组，含 type=伦敦金、type=伦敦银 等，只请求一次即可。
      */
     private BigDecimal[] fetchGoldSilverFromJisuapi() {
         if (jisuApiAppkey == null || jisuApiAppkey.isEmpty()) {
             return null;
         }
-        String goldJson = getJisuapiViaCurl(JISUAPI_GOLD_LONDON);
-        String silverJson = getJisuapiViaCurl(JISUAPI_SILVER_LONDON);
-        if (goldJson == null || silverJson == null) {
+        String json = getJisuapiViaCurl(JISUAPI_GOLD_LONDON);
+        if (json == null || json.isEmpty()) {
             return null;
         }
         ObjectMapper om = new ObjectMapper();
         try {
-            JsonNode goldRoot = om.readTree(goldJson);
-            if (goldRoot.path("status").asInt(-1) != 0) {
-                LOG.warn("极速数据金价返回异常: {}", goldRoot.path("msg").asText(""));
+            JsonNode root = om.readTree(json);
+            if (root.path("status").asInt(-1) != 0) {
+                LOG.warn("极速数据返回异常: {}", root.path("msg").asText(""));
                 return null;
             }
-            BigDecimal goldPrice = parseJisuapiPrice(goldRoot.path("result"), "伦敦金");
-            JsonNode silverRoot = om.readTree(silverJson);
-            if (silverRoot.path("status").asInt(-1) != 0) {
-                LOG.warn("极速数据银价返回异常: {}", silverRoot.path("msg").asText(""));
-                return null;
-            }
-            BigDecimal silverPrice = parseJisuapiPrice(silverRoot.path("result"), "白银美元");
+            JsonNode result = root.path("result");
+            BigDecimal goldPrice = parseJisuapiPrice(result, "伦敦金");
+            BigDecimal silverPrice = parseJisuapiPrice(result, "伦敦银");
             if (goldPrice == null || silverPrice == null) {
                 return null;
             }

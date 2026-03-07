@@ -80,6 +80,10 @@ public class ShfeTradeDailyApiServiceImpl implements ShfeTradeDailyApiService {
             if (d.isAfter(today)) {
                 break;
             }
+            if (d.getDayOfWeek() == java.time.DayOfWeek.SATURDAY
+                    || d.getDayOfWeek() == java.time.DayOfWeek.SUNDAY) {
+                continue;
+            }
             List<Map<String, Object>> dayData = shfeTradeDailyFetcher.fetchByDate(d);
             if (dayData.isEmpty()) {
                 continue;

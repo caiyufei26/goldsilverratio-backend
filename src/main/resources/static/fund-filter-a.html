@@ -77,6 +77,16 @@
     .value-negative { color: #34d399; }
     .tag-yuan { color: #34d399; font-weight: 600; }
     .tag-fang { color: #fbbf24; font-weight: 600; }
+    .tag-yuce { color: #60a5fa; font-weight: 600; }
+    .link-detail { color: #60a5fa; margin-left: 6px; cursor: pointer; text-decoration: none; }
+    .link-detail:hover { text-decoration: underline; }
+    .modal-overlay { position: fixed; left: 0; top: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 1000; display: none; justify-content: center; align-items: center; padding: 20px; }
+    .modal-overlay.show { display: flex; }
+    .modal-box { background: #1e293b; border-radius: 12px; max-width: 520px; width: 100%; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column; }
+    .modal-title { padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 0.95rem; }
+    .modal-body { padding: 16px; overflow: auto; white-space: pre-wrap; word-break: break-word; color: rgba(255,255,255,0.85); font-size: 0.9rem; }
+    .modal-close { padding: 10px 16px; border-top: 1px solid rgba(255,255,255,0.1); text-align: right; }
+    .modal-close button { background: transparent; border: 1px solid rgba(255,255,255,0.2); color: #94a3b8; padding: 6px 14px; border-radius: 6px; cursor: pointer; }
     .empty-tip { text-align: center; padding: 32px 12px; color: rgba(255,255,255,0.35); }
 
     .toggle-btn {
@@ -97,7 +107,7 @@
   <div class="container">
     <a class="back-link" href="/index.html">&larr; 返回首页</a>
     <h1>CAN SLIM A - 年度每股收益</h1>
-    <p class="hint">输入基金代码，获取成分股。原版：近三年每股收益增长率均 &gt; 25%；放宽：去年 &gt; 10% 且 今年 &gt; 50%。</p>
+    <p class="hint">输入基金代码，获取成分股。原版/放宽：年度每股收益规则；无去年年报时若业绩预告净利润同比 &gt; 50% 则标为业绩预增。</p>
 
     <div class="card">
       <div class="form-row">
@@ -161,6 +171,13 @@
         </div>
       </div>
     </div>
+    <div id="detailModal" class="modal-overlay">
+      <div class="modal-box">
+        <div class="modal-title">业绩预告明细</div>
+        <div class="modal-body" id="detailModalBody"></div>
+        <div class="modal-close"><button type="button" id="detailModalClose">关闭</button></div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -203,57 +220,67 @@
         if (!matchType) return '--';
         if (matchType === '原版') return '<span class="tag-yuan">原版</span>';
         if (matchType === '放宽') return '<span class="tag-fang">放宽</span>';
+        if (matchType === '业绩预增') return '<span class="tag-yuce">业绩预增</span>';
         return matchType;
       }
 
-      function growthForYear(row, y) {
-        if (!row.hasData) return null;
-        if (row.yearThisYear === y) return row.growthThisYear;
-        if (row.yearLastYear === y) return row.growthLastYear;
-        if (row.yearTwoYearsAgo === y) return row.growthTwoYearsAgo;
-        return null;
+      function cellGrowth(row, sourceKey, growthKey, forecastYoyKey) {
+        if (row[sourceKey] === 'annual' && row[growthKey] != null) return formatPct(row[growthKey]);
+        if (row[sourceKey] === 'forecast' && row[forecastYoyKey] != null) return '预增(' + Number(row[forecastYoyKey]).toFixed(0) + '%)';
+        if (row[sourceKey] === 'forecast') return '预增';
+        return '--';
       }
-      function epsForYear(row, y) {
-        if (!row.hasData) return null;
-        if (row.yearThisYear === y) return row.epsThisYear;
-        if (row.yearLastYear === y) return row.epsLastYear;
-        if (row.yearTwoYearsAgo === y) return row.epsTwoYearsAgo;
-        return null;
+      function cellEps(row, sourceKey, epsKey) {
+        if (row[sourceKey] === 'annual' && row[epsKey] != null) return formatEps(row[epsKey]);
+        if (row[sourceKey] === 'forecast') return '预增';
+        return '--';
+      }
+      function pctClassVal(val) {
+        if (val == null) return '';
+        return Number(val) > 0 ? 'value-positive' : 'value-negative';
       }
 
-      function renderRow(idx, row, col1Year, col2Year, col3Year) {
+      function renderRow(idx, row, yearN, yearN1, yearN2, useShifted) {
         var code = row.stockCode || '--';
         var name = row.stockName || '--';
         var weight = formatWeight(row.weight);
-        var tag = row.hasData ? matchTag(row.matchType) : '--';
-        var v1 = growthForYear(row, col1Year);
-        var v2 = growthForYear(row, col2Year);
-        var v3 = col3Year != null ? growthForYear(row, col3Year) : null;
-        var g1 = v1 != null ? formatPct(v1) : '--';
-        var g2 = v2 != null ? formatPct(v2) : '--';
-        var g3 = v3 != null ? formatPct(v3) : '--';
-        var e1 = epsForYear(row, col1Year);
-        var e2 = epsForYear(row, col2Year);
-        var e3 = col3Year != null ? epsForYear(row, col3Year) : null;
-        var eps1 = e1 != null ? formatEps(e1) : '--';
-        var eps2 = e2 != null ? formatEps(e2) : '--';
-        var eps3 = e3 != null ? formatEps(e3) : '--';
-        var c1 = v1 != null ? pctClass(v1) : '';
-        var c2 = v2 != null ? pctClass(v2) : '';
-        var c3 = v3 != null ? pctClass(v3) : '';
-        var hideCol3 = col3Year == null ? ' style="display:none;"' : '';
+        var tag = row.matchType ? matchTag(row.matchType) : '--';
+        var detailBtn = (row.matchType === '业绩预增' && row.forecastDetail)
+          ? ' <a href="javascript:void(0)" class="link-detail" data-detail="' + (row.forecastDetail || '').replace(/"/g, '&quot;').replace(/</g, '&lt;') + '">详情</a>' : '';
+        var g1, g2, g3, eps1, eps2, eps3, c1, c2, c3;
+        if (useShifted) {
+          g1 = cellGrowth(row, 'sourceN1', 'growthN1', 'forecastProfitYoyN1');
+          g2 = row.sourceN2 === 'annual' && row.growthN2 != null ? formatPct(row.growthN2) : '--';
+          g3 = row.sourceN3 === 'annual' && row.growthN3 != null ? formatPct(row.growthN3) : '--';
+          eps1 = cellEps(row, 'sourceN1', 'epsN1');
+          eps2 = row.epsN2 != null ? formatEps(row.epsN2) : '--';
+          eps3 = row.epsN3 != null ? formatEps(row.epsN3) : '--';
+          c1 = row.growthN1 != null ? pctClassVal(row.growthN1) : (row.forecastProfitYoyN1 != null ? pctClassVal(row.forecastProfitYoyN1) : '');
+          c2 = row.growthN2 != null ? pctClassVal(row.growthN2) : '';
+          c3 = row.growthN3 != null ? pctClassVal(row.growthN3) : '';
+        } else {
+          g1 = cellGrowth(row, 'sourceN', 'growthN', 'forecastProfitYoyN');
+          g2 = cellGrowth(row, 'sourceN1', 'growthN1', 'forecastProfitYoyN1');
+          g3 = row.sourceN2 === 'annual' && row.growthN2 != null ? formatPct(row.growthN2) : '--';
+          eps1 = cellEps(row, 'sourceN', 'epsN');
+          eps2 = cellEps(row, 'sourceN1', 'epsN1');
+          eps3 = row.epsN2 != null ? formatEps(row.epsN2) : '--';
+          c1 = row.growthN != null ? pctClassVal(row.growthN) : (row.forecastProfitYoyN != null ? pctClassVal(row.forecastProfitYoyN) : '');
+          c2 = row.growthN1 != null ? pctClassVal(row.growthN1) : (row.forecastProfitYoyN1 != null ? pctClassVal(row.forecastProfitYoyN1) : '');
+          c3 = row.growthN2 != null ? pctClassVal(row.growthN2) : '';
+        }
         return '<tr>'
           + '<td>' + (idx + 1) + '</td>'
           + '<td>' + code + '</td>'
           + '<td>' + name + '</td>'
           + '<td>' + weight + '</td>'
-          + '<td>' + tag + '</td>'
+          + '<td>' + tag + detailBtn + '</td>'
           + '<td class="' + c1 + '">' + g1 + '</td>'
           + '<td class="' + c2 + '">' + g2 + '</td>'
-          + '<td class="' + c3 + '"' + hideCol3 + '>' + g3 + '</td>'
+          + '<td class="' + c3 + '">' + g3 + '</td>'
           + '<td>' + eps1 + '</td>'
           + '<td>' + eps2 + '</td>'
-          + '<td' + hideCol3 + '>' + eps3 + '</td>'
+          + '<td>' + eps3 + '</td>'
           + '</tr>';
       }
 
@@ -294,61 +321,36 @@
 
             var matched = data.matched || [];
             var allStocks = data.allStocks || [];
-            var yearList = allStocks.filter(function (r) { return r.yearThisYear != null; }).map(function (r) { return r.yearThisYear; });
-            var maxYearA = yearList.length ? Math.max.apply(null, yearList) : null;
-            var currentYear = new Date().getFullYear();
-            var col1Year = maxYearA;
-            var col2Year = maxYearA != null ? maxYearA - 1 : null;
-            var col3Year = (maxYearA != null && (maxYearA - 2) >= (currentYear - 3)) ? maxYearA - 2 : null;
-            var thA3 = document.getElementById('thAYear3');
-            var thAll3 = document.getElementById('thAllYear3');
-            var thAEps3 = document.getElementById('thAEps3');
-            var thAllEps3 = document.getElementById('thAllEps3');
-            if (maxYearA != null) {
-              document.getElementById('thAYear1').textContent = col1Year + '年增长率';
-              document.getElementById('thAYear2').textContent = col2Year + '年增长率';
-              thA3.textContent = col3Year != null ? col3Year + '年增长率' : '前年增长率';
-              thA3.style.display = col3Year != null ? '' : 'none';
-              document.getElementById('thAEps1').textContent = col1Year + '年每股收益';
-              document.getElementById('thAEps2').textContent = col2Year + '年每股收益';
-              thAEps3.textContent = col3Year != null ? col3Year + '年每股收益' : '前年每股收益';
-              thAEps3.style.display = col3Year != null ? '' : 'none';
-              document.getElementById('thAllYear1').textContent = col1Year + '年增长率';
-              document.getElementById('thAllYear2').textContent = col2Year + '年增长率';
-              thAll3.textContent = col3Year != null ? col3Year + '年增长率' : '前年增长率';
-              thAll3.style.display = col3Year != null ? '' : 'none';
-              document.getElementById('thAllEps1').textContent = col1Year + '年每股收益';
-              document.getElementById('thAllEps2').textContent = col2Year + '年每股收益';
-              thAllEps3.textContent = col3Year != null ? col3Year + '年每股收益' : '前年每股收益';
-              thAllEps3.style.display = col3Year != null ? '' : 'none';
-            } else {
-              document.getElementById('thAYear1').textContent = '今年增长率';
-              document.getElementById('thAYear2').textContent = '去年增长率';
-              thA3.textContent = '前年增长率';
-              thA3.style.display = '';
-              document.getElementById('thAEps1').textContent = '今年每股收益';
-              document.getElementById('thAEps2').textContent = '去年每股收益';
-              thAEps3.textContent = '前年每股收益';
-              thAEps3.style.display = '';
-              document.getElementById('thAllYear1').textContent = '今年增长率';
-              document.getElementById('thAllYear2').textContent = '去年增长率';
-              thAll3.textContent = '前年增长率';
-              thAll3.style.display = '';
-              document.getElementById('thAllEps1').textContent = '今年每股收益';
-              document.getElementById('thAllEps2').textContent = '去年每股收益';
-              thAllEps3.textContent = '前年每股收益';
-              thAllEps3.style.display = '';
-            }
+            var yearN = data.yearN != null ? data.yearN : new Date().getFullYear();
+            var yearN1 = data.yearN1 != null ? data.yearN1 : yearN - 1;
+            var yearN2 = data.yearN2 != null ? data.yearN2 : yearN - 2;
+            var allYearN = data.allTableYearN != null ? data.allTableYearN : yearN;
+            var allYearN1 = data.allTableYearN1 != null ? data.allTableYearN1 : yearN1;
+            var allYearN2 = data.allTableYearN2 != null ? data.allTableYearN2 : yearN2;
+            var useAllTableShifted = (allYearN !== yearN);
+            document.getElementById('thAYear1').textContent = yearN + '年增长率';
+            document.getElementById('thAYear2').textContent = yearN1 + '年增长率';
+            document.getElementById('thAYear3').textContent = yearN2 + '年增长率';
+            document.getElementById('thAEps1').textContent = yearN + '年每股收益';
+            document.getElementById('thAEps2').textContent = yearN1 + '年每股收益';
+            document.getElementById('thAEps3').textContent = yearN2 + '年每股收益';
+            document.getElementById('thAllYear1').textContent = allYearN + '年增长率';
+            document.getElementById('thAllYear2').textContent = allYearN1 + '年增长率';
+            document.getElementById('thAllYear3').textContent = allYearN2 + '年增长率';
+            document.getElementById('thAllEps1').textContent = allYearN + '年每股收益';
+            document.getElementById('thAllEps2').textContent = allYearN1 + '年每股收益';
+            document.getElementById('thAllEps3').textContent = allYearN2 + '年每股收益';
             if (matched.length === 0) {
               matchedBody.innerHTML = '<tr><td colspan="11" class="empty-tip">没有符合 A 的股票</td></tr>';
             } else {
-              matchedBody.innerHTML = matched.map(function (row, i) { return renderRow(i, row, col1Year, col2Year, col3Year); }).join('');
+              matchedBody.innerHTML = matched.map(function (row, i) { return renderRow(i, row, yearN, yearN1, yearN2); }).join('');
             }
             if (allStocks.length === 0) {
               allBody.innerHTML = '<tr><td colspan="11" class="empty-tip">无数据</td></tr>';
             } else {
-              allBody.innerHTML = allStocks.map(function (row, i) { return renderRow(i, row, col1Year, col2Year, col3Year); }).join('');
+              allBody.innerHTML = allStocks.map(function (row, i) { return renderRow(i, row, allYearN, allYearN1, allYearN2, useAllTableShifted); }).join('');
             }
+            bindDetailLinks();
 
             allArea.style.display = 'none';
             btnToggleAll.textContent = '显示全部持仓（' + allStocks.length + ' 只）';
@@ -373,6 +375,27 @@
           allArea.style.display = 'none';
           btnToggleAll.textContent = btnToggleAll.textContent.replace('隐藏', '显示');
         }
+      });
+
+      function bindDetailLinks() {
+        var area = document.getElementById('resultArea');
+        area.removeEventListener('click', onResultAreaClick);
+        area.addEventListener('click', onResultAreaClick);
+      }
+      function onResultAreaClick(e) {
+        if (e.target.classList.contains('link-detail')) {
+          var d = e.target.getAttribute('data-detail');
+          if (d != null) {
+            document.getElementById('detailModalBody').textContent = d.replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+            document.getElementById('detailModal').classList.add('show');
+          }
+        }
+      }
+      document.getElementById('detailModalClose').addEventListener('click', function () {
+        document.getElementById('detailModal').classList.remove('show');
+      });
+      document.getElementById('detailModal').addEventListener('click', function (e) {
+        if (e.target === this) this.classList.remove('show');
       });
     })();
   </script>

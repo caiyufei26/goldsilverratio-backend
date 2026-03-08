@@ -215,7 +215,6 @@
                 <th>变动幅度(扣非)</th>
                 <th>上年同期值(元)</th>
                 <th>公告日期</th>
-                <th>变动幅度&gt;50</th>
               </tr>
             </thead>
             <tbody id="allBody"></tbody>
@@ -327,8 +326,9 @@
         var name = row.stockName || '--';
         var weight = formatWeight(row.weight);
         var tag = row.matchType ? matchTag(row.matchType) : '--';
-        var detailBtn = (row.matchType === '业绩预增' && row.forecastDetail)
-          ? ' <a href="javascript:void(0)" class="link-detail" data-detail="' + (row.forecastDetail || '').replace(/"/g, '&quot;').replace(/</g, '&lt;') + '">详情</a>' : '';
+        var detailContent = (row.revenueYoyFromReport != null ? (yearN + '年营收同比：' + Number(row.revenueYoyFromReport).toFixed(2) + '%\n\n') : '') + (row.forecastDetail || '');
+        var detailBtn = (row.matchType === '业绩预增' && (row.forecastDetail || row.revenueYoyFromReport != null))
+          ? ' <a href="javascript:void(0)" class="link-detail" data-detail="' + (detailContent || '').replace(/"/g, '&quot;').replace(/</g, '&lt;') + '">详情</a>' : '';
         var g1 = cellGrowth(row, 'yearN', 'growthN', 'sourceN', 'forecastProfitYoyN');
         var g2 = cellGrowth(row, 'yearN1', 'growthN1', 'sourceN1', 'forecastProfitYoyN1');
         var g3 = row.sourceN2 === 'annual' && row.growthN2 != null ? formatPct(row.growthN2) : '--';
@@ -358,8 +358,9 @@
         var cYoy = merged.cYoy != null ? formatPct(merged.cYoy) : '--';
         var cOk = merged.cMeet ? '<span class="value-highlight">是</span>' : '否';
         var aTag = merged.aMatchType ? matchTag(merged.aMatchType) : '--';
-        var aDetailBtn = (merged.aMatchType === '业绩预增' && merged.aForecastDetail)
-          ? ' <a href="javascript:void(0)" class="link-detail" data-detail="' + (merged.aForecastDetail || '').replace(/"/g, '&quot;').replace(/</g, '&lt;') + '">详情</a>' : '';
+        var detailContent = (merged.aRevenueYoyFromReport != null ? (yearN + '年营收同比：' + Number(merged.aRevenueYoyFromReport).toFixed(2) + '%\n\n') : '') + (merged.aForecastDetail || '');
+        var aDetailBtn = (merged.aMatchType === '业绩预增' && (merged.aForecastDetail || merged.aRevenueYoyFromReport != null))
+          ? ' <a href="javascript:void(0)" class="link-detail" data-detail="' + (detailContent || '').replace(/"/g, '&quot;').replace(/</g, '&lt;') + '">详情</a>' : '';
         var a1, a2, a3, ae1, ae2, ae3;
         if (useShifted) {
           a1 = cellGrowth(merged, 'yearN1', 'aGrowthN1', 'aSourceN1', 'aForecastProfitYoyN1');
@@ -385,13 +386,12 @@
         }
         var deductPreYear = formatPreYear(merged.aDeductPreYear);
         var deductNotice = merged.aDeductNoticeDate || '--';
-        var deductGt50 = merged.aDeductAmpGt50 ? '<span class="value-highlight">是</span>' : (merged.aDeductContent ? '否' : '--');
         return '<tr><td>' + (idx + 1) + '</td><td>' + code + '</td><td>' + name + '</td><td>' + weight + '</td>'
           + '<td>' + cYoy + '</td><td>' + cOk + '</td><td>' + aTag + aDetailBtn + '</td>'
           + '<td>' + a1 + '</td><td>' + a2 + '</td><td>' + a3 + '</td>'
           + '<td>' + ae1 + '</td><td>' + ae2 + '</td><td>' + ae3 + '</td>'
           + '<td title="' + (merged.aDeductContent || '').replace(/"/g, '&quot;') + '">' + deductContent + '</td>'
-          + '<td>' + deductRange + '</td><td>' + deductPreYear + '</td><td>' + deductNotice + '</td><td>' + deductGt50 + '</td></tr>';
+          + '<td>' + deductRange + '</td><td>' + deductPreYear + '</td><td>' + deductNotice + '</td></tr>';
       }
 
       function doQuery() {
@@ -506,7 +506,8 @@
                 aDeductUpper: a.deductForecastUpper,
                 aDeductPreYear: a.deductForecastPreYear,
                 aDeductNoticeDate: a.deductForecastNoticeDate,
-                aDeductAmpGt50: a.deductForecastAmpGt50
+                aDeductAmpGt50: a.deductForecastAmpGt50,
+                aRevenueYoyFromReport: a.revenueYoyFromReport
               };
             });
             document.getElementById('thAllYear1').textContent = allYearN + '年增长率';
@@ -516,7 +517,7 @@
             document.getElementById('thAllEps2').textContent = allYearN1 + '年每股收益';
             document.getElementById('thAllEps3').textContent = allYearN2 + '年每股收益';
             if (mergedAll.length === 0) {
-              allBody.innerHTML = '<tr><td colspan="18" class="empty-tip">无数据</td></tr>';
+              allBody.innerHTML = '<tr><td colspan="17" class="empty-tip">无数据</td></tr>';
             } else {
               allBody.innerHTML = mergedAll.map(function (row, i) { return renderRowAll(i, row, allYearN, allYearN1, allYearN2, useAllTableShifted); }).join('');
             }

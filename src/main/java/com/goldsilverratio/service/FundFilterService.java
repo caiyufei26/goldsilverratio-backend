@@ -143,7 +143,7 @@ public class FundFilterService {
      * n年：有年报展示年报，无年报展示预增数据，都没有展示 --。n-1年同理。n-2年仅展示年报。
      * 原版：n、n-1、n-2 均有年报且三年每股收益增长率均 &gt; 25%。
      * 放宽：n 无任何数据，n-1、n-2 有年报且两年增长率均 &gt; 25%。
-     * 业绩预增：预增(净利润同比)&gt;50%、n-1年增长率&gt;0%、n年营收同比&gt;20%；可展示预告明细。
+     * 业绩预增：预增(净利润同比)&gt;80%、n-1年增长率&gt;0%、n年营收同比&gt;20%；可展示预告明细。
      *
      * @param fundCode 基金代码
      * @return 包含 matched / allStocks / matchType / forecastDetail(业绩预增时) 等
@@ -379,10 +379,10 @@ public class FundFilterService {
                 && growthN1.doubleValue() > 25 && growthN2.doubleValue() > 25) {
             matchType = "放宽";
         } else {
-            // 业绩预增：预增(净利润同比)>50%、n-1年增长率>0%、n年营收同比>20%（营收同比取业绩报表最新季度与去年同期营业收入计算）
+            // 业绩预增：预增(净利润同比)>80%、n-1年增长率>0%、n年营收同比>20%（营收同比取业绩报表最新季度与去年同期营业收入计算）
             if (sourceN.equals("forecast") && forecastN != null) {
                 Double py = forecastN.get("profitYoy") != null ? ((Number) forecastN.get("profitYoy")).doubleValue() : null;
-                if (py != null && py > 50 && growthN1 != null && growthN1.doubleValue() > 0
+                if (py != null && py > 80 && growthN1 != null && growthN1.doubleValue() > 0
                         && revenueYoyFromReport != null && revenueYoyFromReport > 20) {
                     matchType = "业绩预增";
                     forecastDetail = forecastN.get("content");
@@ -390,7 +390,7 @@ public class FundFilterService {
             }
             if (matchType == null && sourceN.equals("none") && sourceN1.equals("forecast") && forecastN1 != null) {
                 Double py = forecastN1.get("profitYoy") != null ? ((Number) forecastN1.get("profitYoy")).doubleValue() : null;
-                if (py != null && py > 50 && growthN2 != null && growthN2.doubleValue() > 0
+                if (py != null && py > 80 && growthN2 != null && growthN2.doubleValue() > 0
                         && revenueYoyFromReport != null && revenueYoyFromReport > 20) {
                     matchType = "业绩预增";
                     forecastDetail = forecastN1.get("content");
@@ -408,6 +408,7 @@ public class FundFilterService {
             row.put("deductForecastNoticeDate", forecastN.get("deductNoticeDate"));
             row.put("deductForecastAmpGt50", forecastN.get("deductAmpGt50"));
         }
+        row.put("revenueYoyFromReport", revenueYoyFromReport);
         row.put("matchType", matchType);
         return row;
     }

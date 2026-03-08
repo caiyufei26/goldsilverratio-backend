@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>基金持仓筛选</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      min-height: 100vh;
+      background: linear-gradient(160deg, #0f172a 0%, #1e293b 40%, #0f3460 100%);
+      color: #e8e8e8;
+      padding: 24px 16px 56px;
+    }
+    .container { max-width: 960px; margin: 0 auto; }
+    h1 {
+      font-size: 1.5rem; font-weight: 600; color: #fff;
+      margin-bottom: 8px; letter-spacing: 0.02em;
+    }
+    .back-link {
+      display: inline-block; margin-bottom: 16px; color: #7dd3fc;
+      text-decoration: none; font-size: 0.85rem;
+    }
+    .back-link:hover { text-decoration: underline; }
+
+    .card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px; padding: 24px; margin-bottom: 20px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+    }
+    .form-row {
+      display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .form-row label {
+      font-size: 0.9rem; color: rgba(255,255,255,0.7); white-space: nowrap;
+    }
+    .form-row input, .form-row select {
+      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18);
+      color: #fff; border-radius: 8px; padding: 8px 12px; font-size: 0.95rem;
+    }
+    .form-row input:focus, .form-row select:focus {
+      outline: none; border-color: rgba(99,102,241,0.6);
+    }
+    .form-row input::placeholder { color: rgba(255,255,255,0.3); }
+    .btn {
+      background: linear-gradient(135deg, #6366f1, #818cf8);
+      color: #fff; border: none; border-radius: 8px; padding: 9px 20px;
+      font-size: 0.92rem; cursor: pointer; transition: opacity 0.2s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .hint {
+      font-size: 0.8rem; color: rgba(255,255,255,0.4);
+      margin-bottom: 8px; line-height: 1.5;
+    }
+
+    .status { font-size: 0.85rem; margin-top: 12px; min-height: 1.2em; }
+    .status.loading { color: #fbbf24; }
+    .status.error { color: #f87171; }
+    .status.success { color: #34d399; }
+
+    .summary {
+      display: flex; gap: 24px; flex-wrap: wrap;
+      margin-bottom: 16px; font-size: 0.9rem;
+    }
+    .summary .item {
+      background: rgba(255,255,255,0.06); border-radius: 10px;
+      padding: 12px 18px; min-width: 120px;
+    }
+    .summary .item .label { color: rgba(255,255,255,0.5); font-size: 0.78rem; }
+    .summary .item .value {
+      font-size: 1.25rem; font-weight: 600; color: #fff; margin-top: 4px;
+    }
+
+    .table-wrap { overflow-x: auto; margin-top: 12px; }
+    table {
+      width: 100%; border-collapse: collapse; font-size: 0.88rem;
+      min-width: 700px;
+    }
+    th {
+      text-align: left; padding: 10px 12px; font-weight: 500;
+      color: rgba(255,255,255,0.55); border-bottom: 1px solid rgba(255,255,255,0.1);
+      white-space: nowrap; font-size: 0.82rem;
+    }
+    td {
+      padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.06);
+      white-space: nowrap;
+    }
+    tr:hover td { background: rgba(255,255,255,0.03); }
+    .value-positive { color: #f87171; }
+    .value-negative { color: #34d399; }
+    .value-highlight { color: #fbbf24; font-weight: 600; }
+    .tag-yuan { color: #34d399; font-weight: 600; }
+    .tag-fang { color: #fbbf24; font-weight: 600; }
+    .section-title-card { font-size: 1rem; margin-bottom: 8px; }
+    .empty-tip {
+      text-align: center; padding: 32px 12px; color: rgba(255,255,255,0.35);
+    }
+
+    .toggle-btn {
+      background: transparent; border: 1px solid rgba(255,255,255,0.18);
+      color: rgba(255,255,255,0.6); border-radius: 8px; padding: 6px 14px;
+      font-size: 0.82rem; cursor: pointer; margin-top: 16px;
+    }
+    .toggle-btn:hover { border-color: rgba(255,255,255,0.35); color: #fff; }
+
+    @media (max-width: 600px) {
+      .form-row { flex-direction: column; align-items: stretch; }
+      .summary { gap: 10px; }
+      .summary .item { min-width: 80px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a class="back-link" href="/index.html">&larr; 返回首页</a>
+    <h1>基金持仓筛选</h1>
+    <p class="hint">输入基金代码，一次查询同时展示：C（每股收益同比 &gt; 阈值）与 A（年度每股收益 原版/放宽）满足条件的股票。</p>
+
+    <div class="card">
+      <div class="form-row">
+        <label>基金代码</label>
+        <input type="text" id="fundCode" placeholder="如 110011" style="width:160px;" />
+        <label>阈值(%)</label>
+        <input type="number" id="threshold" value="25" style="width:80px;" min="0" />
+        <button class="btn" id="btnQuery">查询</button>
+      </div>
+      <div class="status" id="statusMsg"></div>
+    </div>
+
+    <div id="resultArea" style="display:none;">
+      <div class="summary" id="summaryArea"></div>
+
+      <div class="card">
+        <h2 class="section-title-card" style="color:#fbbf24;">C - 每股收益同比增长率 &gt; 阈值 · 满足条件的股票</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>股票代码</th>
+                <th>股票名称</th>
+                <th>持仓占比</th>
+                <th>最新报告期</th>
+                <th>每股收益</th>
+                <th>去年同期</th>
+                <th>同比增长率</th>
+              </tr>
+            </thead>
+            <tbody id="filteredBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title-card" style="color:#34d399;">A - 年度每股收益 · 满足条件的股票（原版 / 放宽）</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>股票代码</th>
+                <th>股票名称</th>
+                <th>持仓占比</th>
+                <th>符合条件</th>
+                <th id="thAYear1">今年增长率</th>
+                <th id="thAYear2">去年增长率</th>
+                <th id="thAYear3">前年增长率</th>
+                <th id="thAEps1">今年每股收益</th>
+                <th id="thAEps2">去年每股收益</th>
+                <th id="thAEps3">前年每股收益</th>
+              </tr>
+            </thead>
+            <tbody id="matchedBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <button class="toggle-btn" id="btnToggleAll">显示全部持仓</button>
+
+      <div class="card" id="allArea" style="display:none;margin-top:12px;">
+        <h2 class="section-title-card" style="color:rgba(255,255,255,0.6);">全部A股持仓（含 C / A 数据）</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>股票代码</th>
+                <th>股票名称</th>
+                <th>持仓占比</th>
+                <th>C 同比</th>
+                <th>C 满足</th>
+                <th>A 符合</th>
+                <th id="thAllYear1">A 今年%</th>
+                <th id="thAllYear2">A 去年%</th>
+                <th id="thAllYear3">A 前年%</th>
+              </tr>
+            </thead>
+            <tbody id="allBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var fundCodeInput = document.getElementById('fundCode');
+      var thresholdInput = document.getElementById('threshold');
+      var btnQuery = document.getElementById('btnQuery');
+      try {
+        var lastCode = localStorage.getItem('fundFilter_lastFundCode');
+        if (lastCode) fundCodeInput.value = lastCode;
+      } catch (e) {}
+      var statusMsg = document.getElementById('statusMsg');
+      var resultArea = document.getElementById('resultArea');
+      var summaryArea = document.getElementById('summaryArea');
+      var filteredBody = document.getElementById('filteredBody');
+      var matchedBody = document.getElementById('matchedBody');
+      var allBody = document.getElementById('allBody');
+      var allArea = document.getElementById('allArea');
+      var btnToggleAll = document.getElementById('btnToggleAll');
+
+      function formatEps(val) {
+        if (val == null) return '--';
+        var num = Number(val);
+        if (isNaN(num)) return '--';
+        return num.toFixed(2) + ' 元';
+      }
+
+      function formatPct(val) {
+        if (val == null) return '--';
+        return Number(val).toFixed(2) + '%';
+      }
+
+      function formatWeight(val) {
+        if (val == null || val === 0) return '--';
+        return Number(val).toFixed(2) + '%';
+      }
+
+      function pctClass(val) {
+        if (val == null) return '';
+        return Number(val) > 0 ? 'value-positive' : 'value-negative';
+      }
+
+      function matchTag(matchType) {
+        if (!matchType) return '--';
+        if (matchType === '原版') return '<span class="tag-yuan">原版</span>';
+        if (matchType === '放宽') return '<span class="tag-fang">放宽</span>';
+        return matchType;
+      }
+
+      function growthForYear(row, y) {
+        if (!row.hasData) return null;
+        if (row.yearThisYear === y) return row.growthThisYear;
+        if (row.yearLastYear === y) return row.growthLastYear;
+        if (row.yearTwoYearsAgo === y) return row.growthTwoYearsAgo;
+        return null;
+      }
+      function epsForYear(row, y) {
+        if (!row.hasData) return null;
+        if (row.yearThisYear === y) return row.epsThisYear;
+        if (row.yearLastYear === y) return row.epsLastYear;
+        if (row.yearTwoYearsAgo === y) return row.epsTwoYearsAgo;
+        return null;
+      }
+      function aGrowthForYear(merged, y) {
+        if (merged.aYearThisYear === y) return merged.aGrowthThisYear;
+        if (merged.aYearLastYear === y) return merged.aGrowthLastYear;
+        if (merged.aYearTwoYearsAgo === y) return merged.aGrowthTwoYearsAgo;
+        return null;
+      }
+
+      function renderRow(idx, row, showLastYear) {
+        var code = row.stockCode || '--';
+        var name = row.stockName || '--';
+        var weight = formatWeight(row.weight);
+        var date = row.reportDate || '--';
+        var profit = row.hasData ? formatEps(row.singleQuarterProfit) : '无数据';
+        var yoy = row.hasData ? formatPct(row.yoyGrowth) : '无数据';
+        var lastYear = (showLastYear && row.hasData) ? formatEps(row.lastYearProfit) : '';
+        var yoyCls = row.hasData ? pctClass(row.yoyGrowth) : '';
+        var highlight = (row.hasData && Number(row.yoyGrowth) > Number(thresholdInput.value)) ? ' value-highlight' : '';
+
+        var html = '<tr>'
+          + '<td>' + (idx + 1) + '</td>'
+          + '<td>' + code + '</td>'
+          + '<td>' + name + '</td>'
+          + '<td>' + weight + '</td>'
+          + '<td>' + date + '</td>'
+          + '<td>' + profit + '</td>';
+        if (showLastYear) {
+          html += '<td>' + lastYear + '</td>';
+        }
+        html += '<td class="' + yoyCls + highlight + '">' + yoy + '</td>'
+          + '</tr>';
+        return html;
+      }
+
+      function renderRowA(idx, row, col1Year, col2Year, col3Year) {
+        var code = row.stockCode || '--';
+        var name = row.stockName || '--';
+        var weight = formatWeight(row.weight);
+        var tag = row.hasData ? matchTag(row.matchType) : '--';
+        var v1 = growthForYear(row, col1Year);
+        var v2 = growthForYear(row, col2Year);
+        var v3 = col3Year != null ? growthForYear(row, col3Year) : null;
+        var g1 = v1 != null ? formatPct(v1) : '--';
+        var g2 = v2 != null ? formatPct(v2) : '--';
+        var g3 = v3 != null ? formatPct(v3) : '--';
+        var e1 = epsForYear(row, col1Year);
+        var e2 = epsForYear(row, col2Year);
+        var e3 = col3Year != null ? epsForYear(row, col3Year) : null;
+        var eps1 = e1 != null ? formatEps(e1) : '--';
+        var eps2 = e2 != null ? formatEps(e2) : '--';
+        var eps3 = e3 != null ? formatEps(e3) : '--';
+        var c1 = v1 != null ? pctClass(v1) : '';
+        var c2 = v2 != null ? pctClass(v2) : '';
+        var c3 = v3 != null ? pctClass(v3) : '';
+        var hideCol3 = col3Year == null ? ' style="display:none;"' : '';
+        return '<tr><td>' + (idx + 1) + '</td><td>' + code + '</td><td>' + name + '</td><td>' + weight + '</td>'
+          + '<td>' + tag + '</td><td class="' + c1 + '">' + g1 + '</td><td class="' + c2 + '">' + g2 + '</td><td class="' + c3 + '"' + hideCol3 + '>' + g3 + '</td>'
+          + '<td>' + eps1 + '</td><td>' + eps2 + '</td><td' + hideCol3 + '>' + eps3 + '</td></tr>';
+      }
+
+      function renderRowAll(idx, merged, col1Year, col2Year, col3Year) {
+        var code = merged.stockCode || '--';
+        var name = merged.stockName || '--';
+        var weight = formatWeight(merged.weight);
+        var cYoy = merged.cYoy != null ? formatPct(merged.cYoy) : '--';
+        var cOk = merged.cMeet ? '<span class="value-highlight">是</span>' : '否';
+        var aTag = merged.aMatchType ? matchTag(merged.aMatchType) : '--';
+        var av1 = aGrowthForYear(merged, col1Year);
+        var av2 = aGrowthForYear(merged, col2Year);
+        var av3 = col3Year != null ? aGrowthForYear(merged, col3Year) : null;
+        var a1 = av1 != null ? formatPct(av1) : '--';
+        var a2 = av2 != null ? formatPct(av2) : '--';
+        var a3 = av3 != null ? formatPct(av3) : '--';
+        var hideCol3 = col3Year == null ? ' style="display:none;"' : '';
+        return '<tr><td>' + (idx + 1) + '</td><td>' + code + '</td><td>' + name + '</td><td>' + weight + '</td>'
+          + '<td>' + cYoy + '</td><td>' + cOk + '</td><td>' + aTag + '</td><td>' + a1 + '</td><td>' + a2 + '</td><td' + hideCol3 + '>' + a3 + '</td></tr>';
+      }
+
+      function doQuery() {
+        var code = fundCodeInput.value.trim();
+        if (!code) {
+          statusMsg.textContent = '请输入基金代码';
+          statusMsg.className = 'status error';
+          return;
+        }
+        var threshold = thresholdInput.value || 25;
+
+        statusMsg.textContent = '查询中，请稍候（C 与 A 同时拉取，约需 5~15 秒）…';
+        statusMsg.className = 'status loading';
+        resultArea.style.display = 'none';
+        btnQuery.disabled = true;
+
+        var urlC = '/api/fund-filter/query?code=' + encodeURIComponent(code) + '&threshold=' + encodeURIComponent(threshold);
+        var urlA = '/api/fund-filter/query-a?code=' + encodeURIComponent(code);
+
+        Promise.all([fetch(urlC).then(function (r) { return r.json(); }), fetch(urlA).then(function (r) { return r.json(); })])
+          .then(function (results) {
+            btnQuery.disabled = false;
+            var resultC = results[0];
+            var resultA = results[1];
+            if (!resultC || resultC.code !== 200) {
+              statusMsg.textContent = resultC && resultC.message ? resultC.message : 'C 查询失败';
+              statusMsg.className = 'status error';
+              return;
+            }
+            if (!resultA || resultA.code !== 200) {
+              statusMsg.textContent = resultA && resultA.message ? resultA.message : 'A 查询失败';
+              statusMsg.className = 'status error';
+              return;
+            }
+
+            var data = resultC.data;
+            var dataA = resultA.data;
+            statusMsg.textContent = '';
+            statusMsg.className = 'status success';
+            resultArea.style.display = 'block';
+            try {
+              localStorage.setItem('fundFilter_lastFundCode', (data.fundCode || code || '').toString());
+            } catch (e) {}
+
+            summaryArea.innerHTML = ''
+              + '<div class="item"><div class="label">基金代码</div><div class="value">' + data.fundCode + '</div></div>'
+              + '<div class="item"><div class="label">持仓股票数</div><div class="value">' + (data.holdingCount || 0) + '</div></div>'
+              + '<div class="item"><div class="label">C 满足</div><div class="value" style="color:#fbbf24;">' + (data.filteredCount || 0) + ' 只</div></div>'
+              + '<div class="item"><div class="label">A 满足</div><div class="value" style="color:#34d399;">' + (dataA.matchedCount || 0) + ' 只</div></div>'
+              + '<div class="item"><div class="label">C 阈值</div><div class="value">' + data.threshold + '%</div></div>';
+
+            var filtered = data.filtered || [];
+            if (filtered.length === 0) {
+              filteredBody.innerHTML = '<tr><td colspan="8" class="empty-tip">没有满足 C 条件的股票</td></tr>';
+            } else {
+              filteredBody.innerHTML = filtered.map(function (row, i) { return renderRow(i, row, true); }).join('');
+            }
+
+            var matched = dataA.matched || [];
+            var listA = dataA.allStocks || [];
+            var yearList = listA.filter(function (r) { return r.yearThisYear != null; }).map(function (r) { return r.yearThisYear; });
+            var maxYearA = yearList.length ? Math.max.apply(null, yearList) : null;
+            var currentYear = new Date().getFullYear();
+            var col1Year = maxYearA;
+            var col2Year = maxYearA != null ? maxYearA - 1 : null;
+            var col3Year = (maxYearA != null && (maxYearA - 2) >= (currentYear - 3)) ? maxYearA - 2 : null;
+            var thA3 = document.getElementById('thAYear3');
+            var thAEps3 = document.getElementById('thAEps3');
+            if (maxYearA != null) {
+              document.getElementById('thAYear1').textContent = col1Year + '年增长率';
+              document.getElementById('thAEps1').textContent = col1Year + '年每股收益';
+              document.getElementById('thAYear2').textContent = col2Year + '年增长率';
+              document.getElementById('thAEps2').textContent = col2Year + '年每股收益';
+              thA3.textContent = col3Year != null ? col3Year + '年增长率' : '前年增长率';
+              thA3.style.display = col3Year != null ? '' : 'none';
+              thAEps3.textContent = col3Year != null ? col3Year + '年每股收益' : '前年每股收益';
+              thAEps3.style.display = col3Year != null ? '' : 'none';
+            } else {
+              document.getElementById('thAYear1').textContent = '今年增长率';
+              document.getElementById('thAYear2').textContent = '去年增长率';
+              thA3.textContent = '前年增长率';
+              thA3.style.display = '';
+              document.getElementById('thAEps1').textContent = '今年每股收益';
+              document.getElementById('thAEps2').textContent = '去年每股收益';
+              thAEps3.textContent = '前年每股收益';
+              thAEps3.style.display = '';
+            }
+            if (matched.length === 0) {
+              matchedBody.innerHTML = '<tr><td colspan="11" class="empty-tip">没有满足 A 条件的股票</td></tr>';
+            } else {
+              matchedBody.innerHTML = matched.map(function (row, i) { return renderRowA(i, row, col1Year, col2Year, col3Year); }).join('');
+            }
+
+            var listC = data.allStocks || [];
+            var mapA = {};
+            listA.forEach(function (r) { mapA[r.stockCode] = r; });
+            var mergedAll = listC.map(function (r) {
+              var a = mapA[r.stockCode] || {};
+              var cMeet = r.hasData && r.yoyGrowth != null && Number(r.yoyGrowth) > Number(threshold) && r.singleQuarterProfit != null && Number(r.singleQuarterProfit) > 0;
+              return {
+                stockCode: r.stockCode,
+                stockName: r.stockName,
+                weight: r.weight,
+                cYoy: r.yoyGrowth,
+                cMeet: cMeet,
+                aMatchType: a.matchType,
+                aGrowthThisYear: a.growthThisYear,
+                aGrowthLastYear: a.growthLastYear,
+                aGrowthTwoYearsAgo: a.growthTwoYearsAgo,
+                aYearThisYear: a.yearThisYear,
+                aYearLastYear: a.yearLastYear,
+                aYearTwoYearsAgo: a.yearTwoYearsAgo
+              };
+            });
+            var thAll3 = document.getElementById('thAllYear3');
+            if (maxYearA != null) {
+              document.getElementById('thAllYear1').textContent = col1Year + '年%';
+              document.getElementById('thAllYear2').textContent = col2Year + '年%';
+              thAll3.textContent = col3Year != null ? col3Year + '年%' : 'A 前年%';
+              thAll3.style.display = col3Year != null ? '' : 'none';
+            } else {
+              document.getElementById('thAllYear1').textContent = 'A 今年%';
+              document.getElementById('thAllYear2').textContent = 'A 去年%';
+              thAll3.textContent = 'A 前年%';
+              thAll3.style.display = '';
+            }
+            if (mergedAll.length === 0) {
+              allBody.innerHTML = '<tr><td colspan="10" class="empty-tip">无数据</td></tr>';
+            } else {
+              allBody.innerHTML = mergedAll.map(function (row, i) { return renderRowAll(i, row, col1Year, col2Year, col3Year); }).join('');
+            }
+
+            allArea.style.display = 'none';
+            btnToggleAll.textContent = '显示全部持仓（' + mergedAll.length + ' 只）';
+          })
+          .catch(function (err) {
+            btnQuery.disabled = false;
+            statusMsg.textContent = '请求失败：' + (err.message || '网络错误');
+            statusMsg.className = 'status error';
+          });
+      }
+
+      btnQuery.addEventListener('click', doQuery);
+      fundCodeInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') doQuery();
+      });
+
+      btnToggleAll.addEventListener('click', function () {
+        if (allArea.style.display === 'none') {
+          allArea.style.display = 'block';
+          btnToggleAll.textContent = btnToggleAll.textContent.replace('显示', '隐藏');
+        } else {
+          allArea.style.display = 'none';
+          btnToggleAll.textContent = btnToggleAll.textContent.replace('隐藏', '显示');
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

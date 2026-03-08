@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CAN SLIM A - 年度每股收益</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      min-height: 100vh;
+      background: linear-gradient(160deg, #0f172a 0%, #1e293b 40%, #0f3460 100%);
+      color: #e8e8e8;
+      padding: 24px 16px 56px;
+    }
+    .container { max-width: 960px; margin: 0 auto; }
+    h1 {
+      font-size: 1.5rem; font-weight: 600; color: #fff;
+      margin-bottom: 8px; letter-spacing: 0.02em;
+    }
+    .back-link {
+      display: inline-block; margin-bottom: 16px; color: #7dd3fc;
+      text-decoration: none; font-size: 0.85rem;
+    }
+    .back-link:hover { text-decoration: underline; }
+
+    .card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px; padding: 24px; margin-bottom: 20px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+    }
+    .form-row {
+      display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .form-row label { font-size: 0.9rem; color: rgba(255,255,255,0.7); white-space: nowrap; }
+    .form-row input {
+      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18);
+      color: #fff; border-radius: 8px; padding: 8px 12px; font-size: 0.95rem;
+    }
+    .form-row input:focus { outline: none; border-color: rgba(99,102,241,0.6); }
+    .form-row input::placeholder { color: rgba(255,255,255,0.3); }
+    .btn {
+      background: linear-gradient(135deg, #6366f1, #818cf8);
+      color: #fff; border: none; border-radius: 8px; padding: 9px 20px;
+      font-size: 0.92rem; cursor: pointer; transition: opacity 0.2s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .hint { font-size: 0.8rem; color: rgba(255,255,255,0.4); margin-bottom: 8px; line-height: 1.5; }
+
+    .status { font-size: 0.85rem; margin-top: 12px; min-height: 1.2em; }
+    .status.loading { color: #fbbf24; }
+    .status.error { color: #f87171; }
+    .status.success { color: #34d399; }
+
+    .summary { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 16px; font-size: 0.9rem; }
+    .summary .item {
+      background: rgba(255,255,255,0.06); border-radius: 10px;
+      padding: 12px 18px; min-width: 120px;
+    }
+    .summary .item .label { color: rgba(255,255,255,0.5); font-size: 0.78rem; }
+    .summary .item .value { font-size: 1.25rem; font-weight: 600; color: #fff; margin-top: 4px; }
+
+    .table-wrap { overflow-x: auto; margin-top: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; min-width: 720px; }
+    th {
+      text-align: left; padding: 10px 12px; font-weight: 500;
+      color: rgba(255,255,255,0.55); border-bottom: 1px solid rgba(255,255,255,0.1);
+      white-space: nowrap; font-size: 0.82rem;
+    }
+    td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.06); white-space: nowrap; }
+    tr:hover td { background: rgba(255,255,255,0.03); }
+    .value-positive { color: #f87171; }
+    .value-negative { color: #34d399; }
+    .tag-yuan { color: #34d399; font-weight: 600; }
+    .tag-fang { color: #fbbf24; font-weight: 600; }
+    .empty-tip { text-align: center; padding: 32px 12px; color: rgba(255,255,255,0.35); }
+
+    .toggle-btn {
+      background: transparent; border: 1px solid rgba(255,255,255,0.18);
+      color: rgba(255,255,255,0.6); border-radius: 8px; padding: 6px 14px;
+      font-size: 0.82rem; cursor: pointer; margin-top: 16px;
+    }
+    .toggle-btn:hover { border-color: rgba(255,255,255,0.35); color: #fff; }
+
+    @media (max-width: 600px) {
+      .form-row { flex-direction: column; align-items: stretch; }
+      .summary { gap: 10px; }
+      .summary .item { min-width: 80px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a class="back-link" href="/index.html">&larr; 返回首页</a>
+    <h1>CAN SLIM A - 年度每股收益</h1>
+    <p class="hint">输入基金代码，获取成分股。原版：近三年每股收益增长率均 &gt; 25%；放宽：去年 &gt; 10% 且 今年 &gt; 50%。</p>
+
+    <div class="card">
+      <div class="form-row">
+        <label>基金代码</label>
+        <input type="text" id="fundCode" placeholder="如 110011" style="width:160px;" />
+        <button class="btn" id="btnQuery">查询</button>
+      </div>
+      <div class="status" id="statusMsg"></div>
+    </div>
+
+    <div id="resultArea" style="display:none;">
+      <div class="summary" id="summaryArea"></div>
+
+      <div class="card">
+        <h2 style="font-size:1.05rem;margin-bottom:8px;color:#fbbf24;">符合 A 的股票</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>股票代码</th>
+                <th>股票名称</th>
+                <th>持仓占比</th>
+                <th>符合条件</th>
+                <th id="thAYear1">今年增长率</th>
+                <th id="thAYear2">去年增长率</th>
+                <th id="thAYear3">前年增长率</th>
+                <th id="thAEps1">今年每股收益</th>
+                <th id="thAEps2">去年每股收益</th>
+                <th id="thAEps3">前年每股收益</th>
+              </tr>
+            </thead>
+            <tbody id="matchedBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <button class="toggle-btn" id="btnToggleAll">显示全部持仓</button>
+
+      <div class="card" id="allArea" style="display:none;margin-top:12px;">
+        <h2 style="font-size:1.05rem;margin-bottom:8px;color:rgba(255,255,255,0.6);">全部A股持仓</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>股票代码</th>
+                <th>股票名称</th>
+                <th>持仓占比</th>
+                <th>符合条件</th>
+                <th id="thAllYear1">今年增长率</th>
+                <th id="thAllYear2">去年增长率</th>
+                <th id="thAllYear3">前年增长率</th>
+                <th id="thAllEps1">今年每股收益</th>
+                <th id="thAllEps2">去年每股收益</th>
+                <th id="thAllEps3">前年每股收益</th>
+              </tr>
+            </thead>
+            <tbody id="allBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var fundCodeInput = document.getElementById('fundCode');
+      var btnQuery = document.getElementById('btnQuery');
+      try {
+        var lastCodeA = localStorage.getItem('fundFilter_lastFundCode');
+        if (lastCodeA) fundCodeInput.value = lastCodeA;
+      } catch (e) {}
+      var statusMsg = document.getElementById('statusMsg');
+      var resultArea = document.getElementById('resultArea');
+      var summaryArea = document.getElementById('summaryArea');
+      var matchedBody = document.getElementById('matchedBody');
+      var allBody = document.getElementById('allBody');
+      var allArea = document.getElementById('allArea');
+      var btnToggleAll = document.getElementById('btnToggleAll');
+
+      function formatPct(val) {
+        if (val == null) return '--';
+        return Number(val).toFixed(2) + '%';
+      }
+
+      function formatWeight(val) {
+        if (val == null || val === 0) return '--';
+        return Number(val).toFixed(2) + '%';
+      }
+
+      function formatEps(val) {
+        if (val == null) return '--';
+        return Number(val).toFixed(2) + ' 元';
+      }
+
+      function pctClass(val) {
+        if (val == null) return '';
+        return Number(val) > 0 ? 'value-positive' : 'value-negative';
+      }
+
+      function matchTag(matchType) {
+        if (!matchType) return '--';
+        if (matchType === '原版') return '<span class="tag-yuan">原版</span>';
+        if (matchType === '放宽') return '<span class="tag-fang">放宽</span>';
+        return matchType;
+      }
+
+      function growthForYear(row, y) {
+        if (!row.hasData) return null;
+        if (row.yearThisYear === y) return row.growthThisYear;
+        if (row.yearLastYear === y) return row.growthLastYear;
+        if (row.yearTwoYearsAgo === y) return row.growthTwoYearsAgo;
+        return null;
+      }
+      function epsForYear(row, y) {
+        if (!row.hasData) return null;
+        if (row.yearThisYear === y) return row.epsThisYear;
+        if (row.yearLastYear === y) return row.epsLastYear;
+        if (row.yearTwoYearsAgo === y) return row.epsTwoYearsAgo;
+        return null;
+      }
+
+      function renderRow(idx, row, col1Year, col2Year, col3Year) {
+        var code = row.stockCode || '--';
+        var name = row.stockName || '--';
+        var weight = formatWeight(row.weight);
+        var tag = row.hasData ? matchTag(row.matchType) : '--';
+        var v1 = growthForYear(row, col1Year);
+        var v2 = growthForYear(row, col2Year);
+        var v3 = col3Year != null ? growthForYear(row, col3Year) : null;
+        var g1 = v1 != null ? formatPct(v1) : '--';
+        var g2 = v2 != null ? formatPct(v2) : '--';
+        var g3 = v3 != null ? formatPct(v3) : '--';
+        var e1 = epsForYear(row, col1Year);
+        var e2 = epsForYear(row, col2Year);
+        var e3 = col3Year != null ? epsForYear(row, col3Year) : null;
+        var eps1 = e1 != null ? formatEps(e1) : '--';
+        var eps2 = e2 != null ? formatEps(e2) : '--';
+        var eps3 = e3 != null ? formatEps(e3) : '--';
+        var c1 = v1 != null ? pctClass(v1) : '';
+        var c2 = v2 != null ? pctClass(v2) : '';
+        var c3 = v3 != null ? pctClass(v3) : '';
+        var hideCol3 = col3Year == null ? ' style="display:none;"' : '';
+        return '<tr>'
+          + '<td>' + (idx + 1) + '</td>'
+          + '<td>' + code + '</td>'
+          + '<td>' + name + '</td>'
+          + '<td>' + weight + '</td>'
+          + '<td>' + tag + '</td>'
+          + '<td class="' + c1 + '">' + g1 + '</td>'
+          + '<td class="' + c2 + '">' + g2 + '</td>'
+          + '<td class="' + c3 + '"' + hideCol3 + '>' + g3 + '</td>'
+          + '<td>' + eps1 + '</td>'
+          + '<td>' + eps2 + '</td>'
+          + '<td' + hideCol3 + '>' + eps3 + '</td>'
+          + '</tr>';
+      }
+
+      function doQuery() {
+        var code = fundCodeInput.value.trim();
+        if (!code) {
+          statusMsg.textContent = '请输入基金代码';
+          statusMsg.className = 'status error';
+          return;
+        }
+        statusMsg.textContent = '查询中，请稍候…';
+        statusMsg.className = 'status loading';
+        resultArea.style.display = 'none';
+        btnQuery.disabled = true;
+
+        var url = '/api/fund-filter/query-a?code=' + encodeURIComponent(code);
+        fetch(url)
+          .then(function (res) { return res.json(); })
+          .then(function (result) {
+            btnQuery.disabled = false;
+            if (!result || result.code !== 200) {
+              statusMsg.textContent = result.message || '查询失败';
+              statusMsg.className = 'status error';
+              return;
+            }
+            var data = result.data;
+            statusMsg.textContent = '';
+            statusMsg.className = 'status success';
+            resultArea.style.display = 'block';
+            try {
+              localStorage.setItem('fundFilter_lastFundCode', (data.fundCode || code || '').toString());
+            } catch (e) {}
+
+            summaryArea.innerHTML = ''
+              + '<div class="item"><div class="label">基金代码</div><div class="value">' + data.fundCode + '</div></div>'
+              + '<div class="item"><div class="label">持仓股票数</div><div class="value">' + (data.holdingCount || 0) + '</div></div>'
+              + '<div class="item"><div class="label">符合 A</div><div class="value" style="color:#fbbf24;">' + (data.matchedCount || 0) + ' 只</div></div>';
+
+            var matched = data.matched || [];
+            var allStocks = data.allStocks || [];
+            var yearList = allStocks.filter(function (r) { return r.yearThisYear != null; }).map(function (r) { return r.yearThisYear; });
+            var maxYearA = yearList.length ? Math.max.apply(null, yearList) : null;
+            var currentYear = new Date().getFullYear();
+            var col1Year = maxYearA;
+            var col2Year = maxYearA != null ? maxYearA - 1 : null;
+            var col3Year = (maxYearA != null && (maxYearA - 2) >= (currentYear - 3)) ? maxYearA - 2 : null;
+            var thA3 = document.getElementById('thAYear3');
+            var thAll3 = document.getElementById('thAllYear3');
+            var thAEps3 = document.getElementById('thAEps3');
+            var thAllEps3 = document.getElementById('thAllEps3');
+            if (maxYearA != null) {
+              document.getElementById('thAYear1').textContent = col1Year + '年增长率';
+              document.getElementById('thAYear2').textContent = col2Year + '年增长率';
+              thA3.textContent = col3Year != null ? col3Year + '年增长率' : '前年增长率';
+              thA3.style.display = col3Year != null ? '' : 'none';
+              document.getElementById('thAEps1').textContent = col1Year + '年每股收益';
+              document.getElementById('thAEps2').textContent = col2Year + '年每股收益';
+              thAEps3.textContent = col3Year != null ? col3Year + '年每股收益' : '前年每股收益';
+              thAEps3.style.display = col3Year != null ? '' : 'none';
+              document.getElementById('thAllYear1').textContent = col1Year + '年增长率';
+              document.getElementById('thAllYear2').textContent = col2Year + '年增长率';
+              thAll3.textContent = col3Year != null ? col3Year + '年增长率' : '前年增长率';
+              thAll3.style.display = col3Year != null ? '' : 'none';
+              document.getElementById('thAllEps1').textContent = col1Year + '年每股收益';
+              document.getElementById('thAllEps2').textContent = col2Year + '年每股收益';
+              thAllEps3.textContent = col3Year != null ? col3Year + '年每股收益' : '前年每股收益';
+              thAllEps3.style.display = col3Year != null ? '' : 'none';
+            } else {
+              document.getElementById('thAYear1').textContent = '今年增长率';
+              document.getElementById('thAYear2').textContent = '去年增长率';
+              thA3.textContent = '前年增长率';
+              thA3.style.display = '';
+              document.getElementById('thAEps1').textContent = '今年每股收益';
+              document.getElementById('thAEps2').textContent = '去年每股收益';
+              thAEps3.textContent = '前年每股收益';
+              thAEps3.style.display = '';
+              document.getElementById('thAllYear1').textContent = '今年增长率';
+              document.getElementById('thAllYear2').textContent = '去年增长率';
+              thAll3.textContent = '前年增长率';
+              thAll3.style.display = '';
+              document.getElementById('thAllEps1').textContent = '今年每股收益';
+              document.getElementById('thAllEps2').textContent = '去年每股收益';
+              thAllEps3.textContent = '前年每股收益';
+              thAllEps3.style.display = '';
+            }
+            if (matched.length === 0) {
+              matchedBody.innerHTML = '<tr><td colspan="11" class="empty-tip">没有符合 A 的股票</td></tr>';
+            } else {
+              matchedBody.innerHTML = matched.map(function (row, i) { return renderRow(i, row, col1Year, col2Year, col3Year); }).join('');
+            }
+            if (allStocks.length === 0) {
+              allBody.innerHTML = '<tr><td colspan="11" class="empty-tip">无数据</td></tr>';
+            } else {
+              allBody.innerHTML = allStocks.map(function (row, i) { return renderRow(i, row, col1Year, col2Year, col3Year); }).join('');
+            }
+
+            allArea.style.display = 'none';
+            btnToggleAll.textContent = '显示全部持仓（' + allStocks.length + ' 只）';
+          })
+          .catch(function (err) {
+            btnQuery.disabled = false;
+            statusMsg.textContent = '请求失败：' + (err.message || '网络错误');
+            statusMsg.className = 'status error';
+          });
+      }
+
+      btnQuery.addEventListener('click', doQuery);
+      fundCodeInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') doQuery();
+      });
+
+      btnToggleAll.addEventListener('click', function () {
+        if (allArea.style.display === 'none') {
+          allArea.style.display = 'block';
+          btnToggleAll.textContent = btnToggleAll.textContent.replace('显示', '隐藏');
+        } else {
+          allArea.style.display = 'none';
+          btnToggleAll.textContent = btnToggleAll.textContent.replace('隐藏', '显示');
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

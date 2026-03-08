@@ -9,88 +9,93 @@
     body {
       font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
       min-height: 100vh;
-      background: linear-gradient(160deg, #0f172a 0%, #1e293b 40%, #0f3460 100%);
-      color: #e8e8e8;
-      padding: 24px 16px 56px;
+      background: linear-gradient(165deg, #0c1222 0%, #1a2332 35%, #0f2847 70%, #0d2137 100%);
+      color: #e2e8f0;
+      padding: 28px 20px 64px;
+      line-height: 1.5;
     }
-    .container { max-width: 960px; margin: 0 auto; }
+    .container { max-width: 980px; margin: 0 auto; }
     h1 {
-      font-size: 1.5rem; font-weight: 600; color: #fff;
-      margin-bottom: 8px; letter-spacing: 0.02em;
+      font-size: 1.65rem; font-weight: 600; color: #fff;
+      margin-bottom: 6px; letter-spacing: 0.03em;
     }
     .back-link {
-      display: inline-block; margin-bottom: 16px; color: #7dd3fc;
-      text-decoration: none; font-size: 0.85rem;
+      display: inline-block; margin-bottom: 20px; color: #93c5fd;
+      text-decoration: none; font-size: 0.875rem; transition: color 0.15s;
     }
-    .back-link:hover { text-decoration: underline; }
+    .back-link:hover { color: #bfdbfe; text-decoration: underline; }
 
     .card {
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 16px; padding: 24px; margin-bottom: 20px;
-      box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 18px; padding: 26px 28px; margin-bottom: 22px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
     }
     .form-row {
-      display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
-      margin-bottom: 12px;
+      display: flex; gap: 16px; align-items: center; flex-wrap: wrap;
+      margin-bottom: 14px;
     }
     .form-row label {
-      font-size: 0.9rem; color: rgba(255,255,255,0.7); white-space: nowrap;
+      font-size: 0.9rem; color: rgba(255,255,255,0.75); white-space: nowrap;
     }
     .form-row input, .form-row select {
-      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18);
-      color: #fff; border-radius: 8px; padding: 8px 12px; font-size: 0.95rem;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14);
+      color: #fff; border-radius: 10px; padding: 10px 14px; font-size: 0.95rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
     }
     .form-row input:focus, .form-row select:focus {
-      outline: none; border-color: rgba(99,102,241,0.6);
+      outline: none; border-color: rgba(99,102,241,0.5);
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
     }
-    .form-row input::placeholder { color: rgba(255,255,255,0.3); }
+    .form-row input::placeholder { color: rgba(255,255,255,0.25); }
     .btn {
-      background: linear-gradient(135deg, #6366f1, #818cf8);
-      color: #fff; border: none; border-radius: 8px; padding: 9px 20px;
-      font-size: 0.92rem; cursor: pointer; transition: opacity 0.2s;
+      background: linear-gradient(135deg, #4f46e5, #6366f1);
+      color: #fff; border: none; border-radius: 10px; padding: 10px 24px;
+      font-size: 0.9rem; font-weight: 500; cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.2s;
     }
-    .btn:hover { opacity: 0.85; }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn:hover { box-shadow: 0 4px 14px rgba(79,70,229,0.4); }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
 
     .hint {
-      font-size: 0.8rem; color: rgba(255,255,255,0.4);
-      margin-bottom: 8px; line-height: 1.5;
+      font-size: 0.825rem; color: rgba(255,255,255,0.5);
+      margin-bottom: 14px; line-height: 1.6;
     }
 
-    .status { font-size: 0.85rem; margin-top: 12px; min-height: 1.2em; }
+    .status { font-size: 0.875rem; margin-top: 14px; min-height: 1.3em; }
     .status.loading { color: #fbbf24; }
     .status.error { color: #f87171; }
     .status.success { color: #34d399; }
 
     .summary {
-      display: flex; gap: 24px; flex-wrap: wrap;
-      margin-bottom: 16px; font-size: 0.9rem;
+      display: flex; gap: 16px; flex-wrap: wrap;
+      margin-bottom: 20px;
     }
     .summary .item {
-      background: rgba(255,255,255,0.06); border-radius: 10px;
-      padding: 12px 18px; min-width: 120px;
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px; padding: 14px 20px; min-width: 128px;
     }
-    .summary .item .label { color: rgba(255,255,255,0.5); font-size: 0.78rem; }
+    .summary .item .label { color: rgba(255,255,255,0.5); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
     .summary .item .value {
-      font-size: 1.25rem; font-weight: 600; color: #fff; margin-top: 4px;
+      font-size: 1.35rem; font-weight: 600; color: #fff; margin-top: 6px;
     }
 
-    .table-wrap { overflow-x: auto; margin-top: 12px; }
+    .table-wrap { overflow-x: auto; margin-top: 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); }
     table {
-      width: 100%; border-collapse: collapse; font-size: 0.88rem;
+      width: 100%; border-collapse: collapse; font-size: 0.875rem;
       min-width: 700px;
     }
     th {
-      text-align: left; padding: 10px 12px; font-weight: 500;
-      color: rgba(255,255,255,0.55); border-bottom: 1px solid rgba(255,255,255,0.1);
-      white-space: nowrap; font-size: 0.82rem;
+      text-align: left; padding: 12px 14px; font-weight: 500;
+      color: rgba(255,255,255,0.5); border-bottom: 1px solid rgba(255,255,255,0.08);
+      white-space: nowrap; font-size: 0.8rem; background: rgba(0,0,0,0.15);
     }
     td {
-      padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.06);
+      padding: 11px 14px; border-bottom: 1px solid rgba(255,255,255,0.04);
       white-space: nowrap;
     }
-    tr:hover td { background: rgba(255,255,255,0.03); }
+    tbody tr:hover td { background: rgba(255,255,255,0.04); }
     .value-positive { color: #f87171; }
     .value-negative { color: #34d399; }
     .value-highlight { color: #fbbf24; font-weight: 600; }
@@ -99,29 +104,31 @@
     .tag-yuce { color: #60a5fa; font-weight: 600; }
     .link-detail { color: #60a5fa; margin-left: 6px; cursor: pointer; text-decoration: none; }
     .link-detail:hover { text-decoration: underline; }
-    .modal-overlay { position: fixed; left: 0; top: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 1000; display: none; justify-content: center; align-items: center; padding: 20px; }
+    .modal-overlay { position: fixed; left: 0; top: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.65); z-index: 1000; display: none; justify-content: center; align-items: center; padding: 24px; }
     .modal-overlay.show { display: flex; }
-    .modal-box { background: #1e293b; border-radius: 12px; max-width: 520px; width: 100%; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column; }
-    .modal-title { padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 0.95rem; }
-    .modal-body { padding: 16px; overflow: auto; white-space: pre-wrap; word-break: break-word; color: rgba(255,255,255,0.85); font-size: 0.9rem; }
-    .modal-close { padding: 10px 16px; border-top: 1px solid rgba(255,255,255,0.1); text-align: right; }
-    .modal-close button { background: transparent; border: 1px solid rgba(255,255,255,0.2); color: #94a3b8; padding: 6px 14px; border-radius: 6px; cursor: pointer; }
-    .section-title-card { font-size: 1rem; margin-bottom: 8px; }
+    .modal-box { background: #1e293b; border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; max-width: 520px; width: 100%; max-height: 82vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0,0,0,0.4); }
+    .modal-title { padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 0.95rem; font-weight: 500; }
+    .modal-body { padding: 18px; overflow: auto; white-space: pre-wrap; word-break: break-word; color: rgba(255,255,255,0.9); font-size: 0.9rem; line-height: 1.55; }
+    .modal-close { padding: 12px 18px; border-top: 1px solid rgba(255,255,255,0.1); text-align: right; }
+    .modal-close button { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #cbd5e1; padding: 8px 18px; border-radius: 8px; cursor: pointer; font-size: 0.875rem; }
+    .modal-close button:hover { background: rgba(255,255,255,0.12); color: #fff; }
+    .section-title-card { font-size: 1.02rem; margin-bottom: 10px; font-weight: 600; }
     .empty-tip {
-      text-align: center; padding: 32px 12px; color: rgba(255,255,255,0.35);
+      text-align: center; padding: 40px 16px; color: rgba(255,255,255,0.4);
     }
 
     .toggle-btn {
-      background: transparent; border: 1px solid rgba(255,255,255,0.18);
-      color: rgba(255,255,255,0.6); border-radius: 8px; padding: 6px 14px;
-      font-size: 0.82rem; cursor: pointer; margin-top: 16px;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.75); border-radius: 10px; padding: 8px 18px;
+      font-size: 0.85rem; cursor: pointer; margin-top: 18px;
+      transition: border-color 0.2s, color 0.2s;
     }
-    .toggle-btn:hover { border-color: rgba(255,255,255,0.35); color: #fff; }
+    .toggle-btn:hover { border-color: rgba(255,255,255,0.25); color: #fff; }
 
     @media (max-width: 600px) {
       .form-row { flex-direction: column; align-items: stretch; }
-      .summary { gap: 10px; }
-      .summary .item { min-width: 80px; }
+      .summary { gap: 12px; }
+      .summary .item { min-width: 0; }
     }
   </style>
 </head>
@@ -136,7 +143,7 @@
         <label>基金代码</label>
         <input type="text" id="fundCode" placeholder="如 110011" style="width:160px;" />
         <label>阈值(%)</label>
-        <input type="number" id="threshold" value="25" style="width:80px;" min="0" />
+        <input type="number" id="threshold" value="40" style="width:80px;" min="0" />
         <button class="btn" id="btnQuery">查询</button>
       </div>
       <div class="status" id="statusMsg"></div>
@@ -401,7 +408,7 @@
           statusMsg.className = 'status error';
           return;
         }
-        var threshold = thresholdInput.value || 25;
+        var threshold = thresholdInput.value || 40;
 
         statusMsg.textContent = '查询中，请稍候（C 与 A 同时拉取，约需 5~15 秒）…';
         statusMsg.className = 'status loading';

@@ -70,4 +70,50 @@ public class FundFilterApiController {
             return Result.fail(500, "查询失败：" + e.getMessage());
         }
     }
+
+    /**
+     * I - 机构认同度：基金持仓中正处于大股东减持计划执行期间的股票列表。
+     *
+     * @param code 基金代码
+     * @return 处于减持计划执行期的持仓及计划摘要
+     */
+    @GetMapping("/query-i")
+    public Result<Map<String, Object>> queryI(@RequestParam("code") String code) {
+        if (code == null || code.trim().isEmpty()) {
+            return Result.fail(400, "基金代码不能为空");
+        }
+        code = code.trim();
+        try {
+            Map<String, Object> data = fundFilterService.queryAndFilterI(code);
+            if (data.containsKey("error")) {
+                return Result.fail(400, (String) data.get("error"));
+            }
+            return Result.ok(data);
+        } catch (Exception e) {
+            return Result.fail(500, "查询失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 查询单只股票是否处于大股东减持计划执行期间。
+     *
+     * @param stock 股票代码，如 300059
+     * @return inReductionPlan 及计划摘要（若有）
+     */
+    @GetMapping("/check-reduction")
+    public Result<Map<String, Object>> checkReduction(@RequestParam("stock") String stock) {
+        if (stock == null || stock.trim().isEmpty()) {
+            return Result.fail(400, "股票代码不能为空");
+        }
+        stock = stock.trim();
+        try {
+            Map<String, Object> data = fundFilterService.checkStockReduction(stock);
+            if (data.containsKey("error")) {
+                return Result.fail(400, (String) data.get("error"));
+            }
+            return Result.ok(data);
+        } catch (Exception e) {
+            return Result.fail(500, "查询失败：" + e.getMessage());
+        }
+    }
 }

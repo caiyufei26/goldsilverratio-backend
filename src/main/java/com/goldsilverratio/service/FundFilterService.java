@@ -46,6 +46,12 @@ public class FundFilterService {
             "https://datacenter.eastmoney.com/api/data/v1/get";
     /** 业绩预告接口，PREDICT_FINANCE_CODE=004 为归属于上市公司股东的净利润，ADD_AMP_LOWER/UPPER 为同比增幅 */
     private static final String PROFIT_FORECAST_REPORT = "RPT_PUBLIC_OP_NEWPREDICT";
+    /** 大股东减持计划接口是否请求东方财富（当前报表 RPT_PUBLIC_OP_REDUCE 不存在会返回 9501，设为 false 则使用公告接口作为数据源）。 */
+    private static final boolean REDUCE_PLAN_API_ENABLED = false;
+    private static final String REDUCE_PLAN_REPORT = "RPT_PUBLIC_OP_REDUCE";
+    /** 东方财富个股公告接口，用于获取减持相关公告（标题或分类含“减持”） */
+    private static final String ANNOTICE_API_URL =
+            "https://np-anotice-stock.eastmoney.com/api/security/ann";
     private static final String UA =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
 
@@ -233,6 +239,332 @@ public class FundFilterService {
         result.put("allTableYearN1", allTableYearN1);
         result.put("allTableYearN2", allTableYearN2);
         return result;
+    }
+
+    /**
+     * I - 机构认同度：查询基金持仓中正处于大股东减持计划执行期间的股票，独立列表展示。
+     *
+     * @param fundCode 基金代码
+     * @return 包含 fundCode / holdingCount / inReductionPlanCount / list（处于减持计划执行期的持仓及计划摘要）
+     */
+    public Map<String, Object> queryAndFilterI(String fundCode) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("fundCode", fundCode);
+
+        List<Map<String, Object>> holdings = fetchFundHoldings(fundCode);
+        if (holdings.isEmpty()) {
+            result.put("error", "未找到该基金的持仓数据，请检查基金代码是否正确");
+            return result;
+        }
+        result.put("holdingCount", holdings.size());
+
+        List<String> stockCodes = new ArrayList<>();
+        for (Map<String, Object> h : holdings) {
+            String code = (String) h.get("stockCode");
+            if (isAShareCode(code)) {
+                stockCodes.add(code);
+            }
+        }
+        if (stockCodes.isEmpty()) {
+            result.put("error", "该基金持仓中未找到A股股票");
+            return result;
+        }
+
+        Map<String, Object> reductionResult = fetchStocksInReductionPlanResult(stockCodes);
+        @SuppressWarnings("unchecked")
+        Map<String, Map<String, Object>> reductionPlanMap = (Map<String, Map<String, Object>>) reductionResult.get("planMap");
+        if (reductionPlanMap == null) {
+            reductionPlanMap = new LinkedHashMap<>();
+        }
+        if (Boolean.FALSE.equals(reductionResult.get("sourceAvailable"))) {
+            result.put("reductionPlanSourceUnavailable", true);
+        }
+
+        /* 仅保留正在减持（reductionType=CURRENT）的持仓，与“股票代码查询减持信息”同结构，含 reductionDetails 供详情 */
+        List<Map<String, Object>> list = new ArrayList<>();
+        Map<String, String> reductionTypeMap = new LinkedHashMap<>();
+        for (Map<String, Object> holding : holdings) {
+            String code = (String) holding.get("stockCode");
+            if (!isAShareCode(code)) {
+                continue;
+            }
+            Map<String, Object> plan = reductionPlanMap.get(code);
+            if (plan != null && plan.get("reductionType") != null) {
+                reductionTypeMap.put(code, plan.get("reductionType").toString());
+            }
+            if (plan == null || !"CURRENT".equals(plan.get("reductionType"))) {
+                continue;
+            }
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("stockCode", code);
+            row.put("stockName", holding.get("stockName"));
+            row.put("weight", holding.get("weight"));
+            row.put("noticeDate", plan.get("noticeDate"));
+            row.put("planStartDate", plan.get("planStartDate"));
+            row.put("planEndDate", plan.get("planEndDate"));
+            row.put("planBrief", plan.get("planBrief"));
+            row.put("reductionType", plan.get("reductionType"));
+            row.put("futureReduction", plan.get("futureReduction"));
+            if (plan.get("reductionDetails") != null) {
+                row.put("reductionDetails", plan.get("reductionDetails"));
+            }
+            list.add(row);
+        }
+
+        result.put("inReductionPlanCount", list.size());
+        result.put("list", list);
+        result.put("reductionTypeMap", reductionTypeMap);
+        return result;
+    }
+
+    /**
+     * 查询单只股票减持相关状态：今日是否在减持执行期、未来是否将减持及类型。
+     *
+     * @param stockCode 股票代码，如 300059
+     * @return inReductionPlan、reductionType(当前在减持执行期/未来将减持/已过减持期)、futureReduction、noticeDate 等
+     */
+    public Map<String, Object> checkStockReduction(String stockCode) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("stockCode", stockCode);
+        result.put("inReductionPlan", false);
+        result.put("futureReduction", false);
+        if (stockCode == null || stockCode.trim().isEmpty()) {
+            return result;
+        }
+        stockCode = stockCode.trim();
+        if (!isAShareCode(stockCode)) {
+            result.put("error", "仅支持A股股票代码");
+            return result;
+        }
+        List<String> single = new ArrayList<>();
+        single.add(stockCode);
+        Map<String, Object> reductionResult = fetchStocksInReductionPlanResult(single);
+        if (Boolean.FALSE.equals(reductionResult.get("sourceAvailable"))) {
+            result.put("reductionPlanSourceUnavailable", true);
+        }
+        @SuppressWarnings("unchecked")
+        Map<String, Map<String, Object>> planMap = (Map<String, Map<String, Object>>) reductionResult.get("planMap");
+        Map<String, Object> plan = (planMap != null) ? planMap.get(stockCode) : null;
+        if (plan != null) {
+            result.put("inReductionPlan", true);
+            result.put("noticeDate", plan.get("noticeDate"));
+            result.put("planStartDate", plan.get("planStartDate"));
+            result.put("planEndDate", plan.get("planEndDate"));
+            result.put("planBrief", plan.get("planBrief"));
+            result.put("reductionType", plan.get("reductionType"));
+            result.put("futureReduction", Boolean.TRUE.equals(plan.get("futureReduction")));
+            if (plan.get("reductionDetails") != null) {
+                result.put("reductionDetails", plan.get("reductionDetails"));
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 拉取正处于大股东减持计划执行期内的股票列表及计划摘要。
+     * 当东方财富返回 success=false（如报表配置不存在 9501）时，返回空列表并标记 sourceAvailable=false。
+     *
+     * @param stockCodes 待查股票代码
+     * @return Map: "planMap" -> 股票代码 -> { noticeDate, planStartDate, planEndDate, planBrief }, "sourceAvailable" -> Boolean
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> fetchStocksInReductionPlanResult(List<String> stockCodes) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        Map<String, Map<String, Object>> result = new LinkedHashMap<>();
+        out.put("planMap", result);
+        if (stockCodes == null || stockCodes.isEmpty()) {
+            out.put("sourceAvailable", Boolean.TRUE);
+            return out;
+        }
+        if (REDUCE_PLAN_API_ENABLED) {
+            out.put("sourceAvailable", Boolean.TRUE);
+            try {
+                StringBuilder filter = new StringBuilder("(SECURITY_CODE in (");
+                for (int i = 0; i < stockCodes.size(); i++) {
+                    if (i > 0) {
+                        filter.append(",");
+                    }
+                    filter.append("\"").append(stockCodes.get(i)).append("\"");
+                }
+                filter.append("))");
+
+                String url = FINANCIAL_DATA_URL
+                        + "?sortColumns=NOTICE_DATE&sortTypes=-1"
+                        + "&pageSize=2000&pageNumber=1"
+                        + "&reportName=" + REDUCE_PLAN_REPORT
+                        + "&columns=SECURITY_CODE,SECURITY_NAME,NOTICE_DATE,PLAN_START_DATE,PLAN_END_DATE,PLAN_BRIEF"
+                        + "&filter=" + URLEncoder.encode(filter.toString(), "UTF-8")
+                        + "&source=WEB&client=WEB";
+
+                String json = fetchWithRelaxedSsl(url, "https://data.eastmoney.com/", 15000);
+                JsonNode root = OM.readTree(json);
+                if (!root.path("success").asBoolean(false)) {
+                    LOG.warn("减持计划接口返回失败: {}", root.path("message").asText(""));
+                    out.put("sourceAvailable", Boolean.FALSE);
+                    return out;
+                }
+                JsonNode resultNode = root.path("result");
+                if (resultNode.isMissingNode() || resultNode.isNull()) {
+                    out.put("sourceAvailable", Boolean.FALSE);
+                    return out;
+                }
+                JsonNode dataArr = resultNode.path("data");
+                if (dataArr.isMissingNode() || !dataArr.isArray()) {
+                    return out;
+                }
+
+                LocalDate today = LocalDate.now();
+                for (int i = 0; i < dataArr.size(); i++) {
+                    JsonNode item = dataArr.get(i);
+                    String code = item.path("SECURITY_CODE").asText("");
+                    if (code.isEmpty()) {
+                        continue;
+                    }
+                    String endStr = item.path("PLAN_END_DATE").asText(null);
+                    if (endStr == null || endStr.length() < 10) {
+                        continue;
+                    }
+                    LocalDate endDate = LocalDate.parse(endStr.substring(0, 10));
+                    if (endDate.isBefore(today)) {
+                        continue;
+                    }
+                    String startStr = item.path("PLAN_START_DATE").asText("");
+                    LocalDate startDate = null;
+                    if (startStr != null && startStr.length() >= 10) {
+                        startDate = LocalDate.parse(startStr.substring(0, 10));
+                    }
+                    if (startDate != null && startDate.isAfter(today)) {
+                        continue;
+                    }
+                    Map<String, Object> detail = new LinkedHashMap<>();
+                    detail.put("noticeDate", item.path("NOTICE_DATE").asText(null));
+                    detail.put("planStartDate", startStr != null && startStr.length() >= 10 ? startStr.substring(0, 10) : null);
+                    detail.put("planEndDate", endStr.substring(0, 10));
+                    detail.put("planBrief", item.path("PLAN_BRIEF").asText(null));
+                    result.put(code, detail);
+                }
+            } catch (Exception e) {
+                LOG.warn("获取大股东减持计划失败: {}", e.getMessage());
+                out.put("sourceAvailable", Boolean.FALSE);
+            }
+            return out;
+        }
+
+        /* 使用东方财富个股公告接口：筛选标题或分类含“减持”的公告，作为减持相关数据源。公告接口无计划开始/截止日，按惯例推算：开始日≈公告日+15交易日(约20自然日)，截止日=公告日+6个月。 */
+        out.put("sourceAvailable", Boolean.TRUE);
+        for (String code : stockCodes) {
+            List<Map<String, Object>> details = fetchReductionNoticesFromAnn(code);
+            if (!details.isEmpty()) {
+                Map<String, Object> first = details.get(0);
+                String noticeDateStr = (String) first.get("noticeDate");
+                LocalDate noticeDate = null;
+                if (noticeDateStr != null && noticeDateStr.length() >= 10) {
+                    try {
+                        noticeDate = LocalDate.parse(noticeDateStr.substring(0, 10));
+                    } catch (Exception ignored) {
+                    }
+                }
+                String planStartDate = null;
+                String planEndDate = null;
+                String reductionType = null;
+                boolean futureReduction = false;
+                if (noticeDate != null) {
+                    planStartDate = noticeDate.plusDays(20).toString();
+                    planEndDate = noticeDate.plusMonths(6).toString();
+                    LocalDate today = LocalDate.now();
+                    LocalDate start = LocalDate.parse(planStartDate);
+                    LocalDate end = LocalDate.parse(planEndDate);
+                    if (today.isBefore(start)) {
+                        reductionType = "FUTURE";
+                        futureReduction = true;
+                    } else if (today.isAfter(end)) {
+                        reductionType = "PASSED";
+                    } else {
+                        reductionType = "CURRENT";
+                    }
+                }
+                Map<String, Object> plan = new LinkedHashMap<>();
+                plan.put("noticeDate", first.get("noticeDate"));
+                plan.put("planStartDate", planStartDate);
+                plan.put("planEndDate", planEndDate);
+                plan.put("planBrief", first.get("title"));
+                plan.put("reductionType", reductionType);
+                plan.put("futureReduction", futureReduction);
+                plan.put("reductionDetails", details);
+                result.put(code, plan);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * 从东方财富个股公告接口拉取该股票的减持相关公告（标题或公告分类含“减持”）。
+     *
+     * @param stockCode 股票代码
+     * @return 公告列表，每项含 noticeDate、title、url、columnName
+     */
+    private List<Map<String, Object>> fetchReductionNoticesFromAnn(String stockCode) {
+        List<Map<String, Object>> list = new ArrayList<>();
+        try {
+            String url = ANNOTICE_API_URL
+                    + "?ann_type=A&client_source=web&page_index=1&page_size=50&sr=-1&stock_list="
+                    + stockCode;
+            String json = fetchWithRelaxedSsl(url, "https://data.eastmoney.com/", 20000);
+            JsonNode root = OM.readTree(json);
+            if (root.path("success").asInt(0) != 1) {
+                return list;
+            }
+            JsonNode data = root.path("data");
+            if (data.isMissingNode() || data.isNull()) {
+                return list;
+            }
+            JsonNode arr = data.path("list");
+            if (arr.isMissingNode() || !arr.isArray()) {
+                return list;
+            }
+            for (int i = 0; i < arr.size(); i++) {
+                JsonNode item = arr.get(i);
+                String title = item.path("title_ch").asText("");
+                if (title.isEmpty()) {
+                    title = item.path("title").asText("");
+                }
+                boolean reductionByTitle = title != null && title.contains("减持");
+                boolean reductionByColumn = false;
+                JsonNode columns = item.path("columns");
+                if (columns.isArray()) {
+                    for (int j = 0; j < columns.size(); j++) {
+                        String cn = columns.get(j).path("column_name").asText("");
+                        if (cn != null && cn.contains("减持")) {
+                            reductionByColumn = true;
+                            break;
+                        }
+                    }
+                }
+                if (!reductionByTitle && !reductionByColumn) {
+                    continue;
+                }
+                String noticeDateStr = item.path("notice_date").asText("");
+                String noticeDate = noticeDateStr != null && noticeDateStr.length() >= 10
+                        ? noticeDateStr.substring(0, 10) : noticeDateStr;
+                String artCode = item.path("art_code").asText("");
+                String link = "https://data.eastmoney.com/notices/detail/" + stockCode + "/" + artCode + ".html";
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("noticeDate", noticeDate);
+                row.put("title", title);
+                row.put("url", link);
+                row.put("artCode", artCode);
+                list.add(row);
+            }
+        } catch (Exception e) {
+            LOG.warn("获取减持相关公告失败 {}: {}", stockCode, e.getMessage());
+        }
+        return list;
+    }
+
+    private Map<String, Map<String, Object>> fetchStocksInReductionPlan(List<String> stockCodes) {
+        Map<String, Object> out = fetchStocksInReductionPlanResult(stockCodes);
+        Map<String, Map<String, Object>> planMap = (Map<String, Map<String, Object>>) out.get("planMap");
+        return planMap != null ? planMap : new LinkedHashMap<>();
     }
 
     /**

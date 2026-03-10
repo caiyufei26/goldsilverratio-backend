@@ -125,6 +125,11 @@
     }
     .toggle-btn:hover { border-color: rgba(255,255,255,0.25); color: #fff; }
 
+    .stock-reduction-result { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); }
+    .stock-reduction-result.yes { border-color: rgba(167,139,250,0.4); color: #c4b5fd; }
+    .stock-reduction-result.no { border-color: rgba(52,211,153,0.3); color: #6ee7b7; }
+    .stock-reduction-result.err { border-color: rgba(248,113,113,0.3); color: #fca5a5; }
+
     @media (max-width: 600px) {
       .form-row { flex-direction: column; align-items: stretch; }
       .summary { gap: 12px; }
@@ -136,7 +141,7 @@
   <div class="container">
     <a class="back-link" href="/index.html">&larr; 返回首页</a>
     <h1>基金持仓筛选</h1>
-    <p class="hint">输入基金代码，一次查询同时展示：C（每股收益同比 &gt; 阈值）与 A（年度每股收益 原版/放宽/业绩预增）满足条件的股票。</p>
+    <p class="hint">输入基金代码，一次查询同时展示：C（每股收益同比 &gt; 阈值）、A（年度每股收益 原版/放宽/业绩预增）、I（机构认同度 · 大股东减持计划执行期间）满足条件的股票。</p>
 
     <div class="card">
       <div class="form-row">
@@ -197,6 +202,31 @@
         </div>
       </div>
 
+      <div class="card" id="reductionCard" style="display:none;">
+        <h2 class="section-title-card" style="color:#a78bfa;">I - 机构认同度 · 大股东减持计划执行期间</h2>
+        <p class="hint" style="margin-top:0;margin-bottom:8px;">持仓中正在减持的股票（与股票代码查询减持信息同结构），仅在有基金查询结果且存在正在减持持仓时展示。</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>股票代码</th>
+                <th>股票名称</th>
+                <th>持仓占比</th>
+                <th>减持类别</th>
+                <th>未来是否将减持</th>
+                <th>公告日期</th>
+                <th>计划开始日</th>
+                <th>计划截止日</th>
+                <th>计划摘要</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="reductionBody"></tbody>
+          </table>
+        </div>
+      </div>
+
       <button class="toggle-btn" id="btnToggleAll">显示全部持仓</button>
 
       <div class="card" id="allArea" style="display:none;margin-top:12px;">
@@ -212,6 +242,7 @@
                 <th>C 同比</th>
                 <th>C 满足</th>
                 <th>A 符合</th>
+                <th>减持类别</th>
                 <th id="thAllYear1">今年增长率</th>
                 <th id="thAllYear2">去年增长率</th>
                 <th id="thAllYear3">前年增长率</th>
@@ -225,6 +256,26 @@
               </tr>
             </thead>
             <tbody id="allBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div id="reductionDetailModal" class="modal-overlay">
+      <div class="modal-box" style="max-width:720px;">
+        <div class="modal-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding:0 20px;padding-top:20px;">
+          <h3 style="margin:0;font-size:1.1rem;">减持相关公告</h3>
+          <button type="button" id="reductionDetailModalClose" class="btn" style="padding:6px 14px;">关闭</button>
+        </div>
+        <div class="table-wrap" style="max-height:60vh;overflow:auto;padding:0 20px 20px;">
+          <table>
+            <thead>
+              <tr>
+                <th>公告日期</th>
+                <th>公告标题</th>
+                <th>链接</th>
+              </tr>
+            </thead>
+            <tbody id="reductionDetailModalBody"></tbody>
           </table>
         </div>
       </div>
@@ -252,9 +303,12 @@
       var summaryArea = document.getElementById('summaryArea');
       var filteredBody = document.getElementById('filteredBody');
       var matchedBody = document.getElementById('matchedBody');
+      var reductionBody = document.getElementById('reductionBody');
       var allBody = document.getElementById('allBody');
       var allArea = document.getElementById('allArea');
       var btnToggleAll = document.getElementById('btnToggleAll');
+      var reductionCard = document.getElementById('reductionCard');
+      if (reductionCard) reductionCard.style.display = 'none';
 
       function formatEps(val) {
         if (val == null) return '--';
@@ -358,13 +412,18 @@
         if (num >= 1e4) return (num / 1e4).toFixed(2) + '万';
         return num.toFixed(0);
       }
-      function renderRowAll(idx, merged, yearN, yearN1, yearN2, useShifted) {
+      function renderRowAll(idx, merged, yearN, yearN1, yearN2, useShifted, reductionTypeMap) {
         var code = merged.stockCode || '--';
         var name = merged.stockName || '--';
         var weight = formatWeight(merged.weight);
         var cYoy = merged.cYoy != null ? formatPct(merged.cYoy) : '--';
         var cOk = merged.cMeet ? '<span class="value-highlight">是</span>' : '否';
         var aTag = merged.aMatchType ? matchTag(merged.aMatchType) : '--';
+        var reductionCategoryMap = { 'FUTURE': '预减持', 'CURRENT': '正在减持', 'PASSED': '已减持' };
+        var reductionCategoryRaw = (reductionTypeMap && merged.stockCode && reductionTypeMap[merged.stockCode])
+          ? (reductionCategoryMap[reductionTypeMap[merged.stockCode]] || '--') : '--';
+        var reductionCategory = reductionCategoryRaw !== '--'
+          ? '<span style="color:#f87171;">' + reductionCategoryRaw + '</span>' : '--';
         var detailContent = (merged.aRevenueYoyFromReport != null ? (yearN + '年营收同比：' + Number(merged.aRevenueYoyFromReport).toFixed(2) + '%\n\n') : '') + (merged.aForecastDetail || '');
         var aDetailBtn = (merged.aMatchType === '业绩预增' && (merged.aForecastDetail || merged.aRevenueYoyFromReport != null))
           ? ' <a href="javascript:void(0)" class="link-detail" data-detail="' + (detailContent || '').replace(/"/g, '&quot;').replace(/</g, '&lt;') + '">详情</a>' : '';
@@ -394,7 +453,7 @@
         var deductPreYear = formatPreYear(merged.aDeductPreYear);
         var deductNotice = merged.aDeductNoticeDate || '--';
         return '<tr><td>' + (idx + 1) + '</td><td>' + code + '</td><td>' + name + '</td><td>' + weight + '</td>'
-          + '<td>' + cYoy + '</td><td>' + cOk + '</td><td>' + aTag + aDetailBtn + '</td>'
+          + '<td>' + cYoy + '</td><td>' + cOk + '</td><td>' + aTag + aDetailBtn + '</td><td>' + reductionCategory + '</td>'
           + '<td>' + a1 + '</td><td>' + a2 + '</td><td>' + a3 + '</td>'
           + '<td>' + ae1 + '</td><td>' + ae2 + '</td><td>' + ae3 + '</td>'
           + '<td title="' + (merged.aDeductContent || '').replace(/"/g, '&quot;') + '">' + deductContent + '</td>'
@@ -410,19 +469,25 @@
         }
         var threshold = thresholdInput.value || 40;
 
-        statusMsg.textContent = '查询中，请稍候（C 与 A 同时拉取，约需 5~15 秒）…';
+        statusMsg.textContent = '查询中，请稍候（C / A / I 同时拉取，约需 5~15 秒）…';
         statusMsg.className = 'status loading';
         resultArea.style.display = 'none';
         btnQuery.disabled = true;
 
         var urlC = '/api/fund-filter/query?code=' + encodeURIComponent(code) + '&threshold=' + encodeURIComponent(threshold);
         var urlA = '/api/fund-filter/query-a?code=' + encodeURIComponent(code);
+        var urlI = '/api/fund-filter/query-i?code=' + encodeURIComponent(code);
 
-        Promise.all([fetch(urlC).then(function (r) { return r.json(); }), fetch(urlA).then(function (r) { return r.json(); })])
+        Promise.all([
+          fetch(urlC).then(function (r) { return r.json(); }),
+          fetch(urlA).then(function (r) { return r.json(); }),
+          fetch(urlI).then(function (r) { return r.json(); })
+        ])
           .then(function (results) {
             btnQuery.disabled = false;
             var resultC = results[0];
             var resultA = results[1];
+            var resultI = results[2];
             if (!resultC || resultC.code !== 200) {
               statusMsg.textContent = resultC && resultC.message ? resultC.message : 'C 查询失败';
               statusMsg.className = 'status error';
@@ -436,6 +501,7 @@
 
             var data = resultC.data;
             var dataA = resultA.data;
+            var dataI = (resultI && resultI.code === 200 && resultI.data) ? resultI.data : { list: [], inReductionPlanCount: 0, reductionPlanSourceUnavailable: true };
             statusMsg.textContent = '';
             statusMsg.className = 'status success';
             resultArea.style.display = 'block';
@@ -448,6 +514,7 @@
               + '<div class="item"><div class="label">持仓股票数</div><div class="value">' + (data.holdingCount || 0) + '</div></div>'
               + '<div class="item"><div class="label">C 满足</div><div class="value" style="color:#fbbf24;">' + (data.filteredCount || 0) + ' 只</div></div>'
               + '<div class="item"><div class="label">A 满足</div><div class="value" style="color:#34d399;">' + (dataA.matchedCount || 0) + ' 只</div></div>'
+              + '<div class="item"><div class="label">I 减持执行期</div><div class="value" style="color:#a78bfa;">' + (dataI.inReductionPlanCount || 0) + ' 只' + (dataI.reductionPlanSourceUnavailable ? ' <span style="font-size:0.75rem;color:rgba(255,255,255,0.5);">(数据源暂不可用)</span>' : '') + '</div></div>'
               + '<div class="item"><div class="label">C 阈值</div><div class="value">' + data.threshold + '%</div></div>';
 
             var filtered = data.filtered || [];
@@ -474,6 +541,32 @@
               matchedBody.innerHTML = '<tr><td colspan="11" class="empty-tip">没有满足 A 条件的股票</td></tr>';
             } else {
               matchedBody.innerHTML = matched.map(function (row, i) { return renderRowA(i, row, yearN, yearN1, yearN2); }).join('');
+            }
+
+            var listI = dataI.list || [];
+            var reductionCard = document.getElementById('reductionCard');
+            if (dataI.reductionPlanSourceUnavailable) {
+              if (reductionCard) reductionCard.style.display = 'block';
+              reductionBody.innerHTML = '<tr><td colspan="11" class="empty-tip">减持计划数据源暂不可用（东方财富该报表未开放），无法展示列表</td></tr>';
+            } else if (listI.length === 0) {
+              if (reductionCard) reductionCard.style.display = 'none';
+              reductionBody.innerHTML = '';
+            } else {
+              if (reductionCard) reductionCard.style.display = 'block';
+              window._lastReductionIList = listI;
+              var categoryMap = { 'FUTURE': '预减持', 'CURRENT': '正在减持', 'PASSED': '已减持' };
+              reductionBody.innerHTML = listI.map(function (row, i) {
+                var categoryLabel = categoryMap[row.reductionType] || '正在减持';
+                var futureStatus = row.futureReduction ? '<span class="value-highlight">是</span>' : '否';
+                var brief = (row.planBrief || '').length > 50 ? (row.planBrief || '').substring(0, 50) + '…' : (row.planBrief || '--');
+                var opCell = (row.reductionDetails && row.reductionDetails.length > 0)
+                  ? '<button type="button" class="btn btn-reduction-detail-i" style="padding:6px 12px;font-size:0.85rem;" data-index="' + i + '">详情</button>' : '--';
+                return '<tr><td>' + (i + 1) + '</td><td>' + (row.stockCode || '--') + '</td><td>' + (row.stockName || '--') + '</td>'
+                  + '<td>' + (row.weight != null ? Number(row.weight).toFixed(2) + '%' : '--') + '</td>'
+                  + '<td>' + categoryLabel + '</td><td>' + futureStatus + '</td>'
+                  + '<td>' + (row.noticeDate || '--') + '</td><td>' + (row.planStartDate || '--') + '</td><td>' + (row.planEndDate || '--') + '</td>'
+                  + '<td title="' + (row.planBrief || '').replace(/"/g, '&quot;') + '">' + brief + '</td><td>' + opCell + '</td></tr>';
+              }).join('');
             }
 
             var listC = data.allStocks || [];
@@ -523,10 +616,11 @@
             document.getElementById('thAllEps1').textContent = allYearN + '年每股收益';
             document.getElementById('thAllEps2').textContent = allYearN1 + '年每股收益';
             document.getElementById('thAllEps3').textContent = allYearN2 + '年每股收益';
+            var reductionTypeMap = (dataI && dataI.reductionTypeMap) ? dataI.reductionTypeMap : {};
             if (mergedAll.length === 0) {
-              allBody.innerHTML = '<tr><td colspan="17" class="empty-tip">无数据</td></tr>';
+              allBody.innerHTML = '<tr><td colspan="18" class="empty-tip">无数据</td></tr>';
             } else {
-              allBody.innerHTML = mergedAll.map(function (row, i) { return renderRowAll(i, row, allYearN, allYearN1, allYearN2, useAllTableShifted); }).join('');
+              allBody.innerHTML = mergedAll.map(function (row, i) { return renderRowAll(i, row, allYearN, allYearN1, allYearN2, useAllTableShifted, reductionTypeMap); }).join('');
             }
             bindDetailLinks();
 
@@ -554,6 +648,42 @@
           btnToggleAll.textContent = btnToggleAll.textContent.replace('隐藏', '显示');
         }
       });
+
+      function openReductionDetailModal(details) {
+        if (!details || !details.length) return;
+        var tbody = document.getElementById('reductionDetailModalBody');
+        if (!tbody) return;
+        tbody.innerHTML = details.map(function (item) {
+          var date = item.noticeDate || '--';
+          var title = (item.title || '--').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+          var url = item.url || '#';
+          return '<tr><td>' + date + '</td><td title="' + title + '">' + (title.length > 48 ? title.substring(0, 48) + '…' : title) + '</td><td><a href="' + url + '" target="_blank" rel="noopener" class="back-link">查看</a></td></tr>';
+        }).join('');
+        document.getElementById('reductionDetailModal').classList.add('show');
+      }
+      if (reductionBody) {
+        reductionBody.addEventListener('click', function (e) {
+          if (e.target && e.target.classList && e.target.classList.contains('btn-reduction-detail-i')) {
+            var idx = e.target.getAttribute('data-index');
+            if (idx == null) return;
+            var listI = window._lastReductionIList;
+            if (!listI || !listI[parseInt(idx, 10)]) return;
+            openReductionDetailModal(listI[parseInt(idx, 10)].reductionDetails);
+          }
+        });
+      }
+      var reductionDetailModalClose = document.getElementById('reductionDetailModalClose');
+      if (reductionDetailModalClose) {
+        reductionDetailModalClose.addEventListener('click', function () {
+          document.getElementById('reductionDetailModal').classList.remove('show');
+        });
+      }
+      var reductionDetailModal = document.getElementById('reductionDetailModal');
+      if (reductionDetailModal) {
+        reductionDetailModal.addEventListener('click', function (e) {
+          if (e.target === this) this.classList.remove('show');
+        });
+      }
 
       function bindDetailLinks() {
         var area = document.getElementById('resultArea');

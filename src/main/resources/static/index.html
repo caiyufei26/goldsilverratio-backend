@@ -136,7 +136,7 @@
       border-color: rgba(20, 184, 166, 0.55);
       background: rgba(20, 184, 166, 0.08);
     }
-    .card-link.fund-filter {
+    预增(净利润同比)&gt;50%、n-1年增长率&gt;0%、n年营收同比&gt;20%；可展示预告明细。    .card-link.fund-filter {
       border-color: rgba(99, 102, 241, 0.35);
       color: #a5b4fc;
     }
@@ -242,10 +242,15 @@
     <section class="section">
       <h2 class="section-title">选股工具</h2>
       <nav class="nav-links">
+        <a class="card-link fund-filter" href="/stock-reduction.html">
+          <span class="icon">&#x1F4C8;</span>
+          <span class="title">股票代码查询减持信息</span>
+          <span class="desc">输入股票代码 · 查询减持类别（预减持/正在减持/已减持）及公告详情</span>
+        </a>
         <a class="card-link fund-filter" href="/fund-filter.html">
           <span class="icon">&#x1F50D;</span>
           <span class="title">基金持仓筛选</span>
-          <span class="desc">输入基金代码 · C（每股收益同比 &gt; 25%）与 A（年度每股收益 原版/放宽）一次查询</span>
+          <span class="desc">输入基金代码 · C（每股收益同比 &gt; 阈值）与 A（年度每股收益 原版/放宽/业绩预增）、I（减持）一次查询</span>
         </a>
       </nav>
     </section>

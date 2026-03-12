@@ -45,7 +45,41 @@ public class ShfeInventoryFetcher {
         }
         String dateStr = date.format(YYYYMMDD);
         Document doc = fetchDocument(dateStr, productId);
-        return doc != null ? parseInventoryFromDocument(doc, dateStr) : null;
+        if (doc == null) {
+            return null;
+        }
+        BigDecimal total = parseInventoryFromDocument(doc, dateStr);
+        if (total != null && total.compareTo(BigDecimal.ZERO) > 0) {
+            return total;
+        }
+        List<Map<String, Object>> detail = parseDetailFromDocument(doc);
+        if (detail != null && !detail.isEmpty()) {
+            BigDecimal fromTotalRow = null;
+            BigDecimal sumData = BigDecimal.ZERO;
+            for (Map<String, Object> row : detail) {
+                Object v = row.get("futuresKg");
+                if (!(v instanceof BigDecimal)) {
+                    continue;
+                }
+                BigDecimal bd = (BigDecimal) v;
+                if (bd.compareTo(BigDecimal.ZERO) < 0) {
+                    continue;
+                }
+                String rowType = (String) row.get("rowType");
+                if ("total".equals(rowType)) {
+                    fromTotalRow = bd;
+                } else if ("data".equals(rowType)) {
+                    sumData = sumData.add(bd);
+                }
+            }
+            if (fromTotalRow != null && fromTotalRow.compareTo(BigDecimal.ZERO) > 0) {
+                return fromTotalRow;
+            }
+            if (sumData.compareTo(BigDecimal.ZERO) > 0) {
+                return sumData;
+            }
+        }
+        return total;
     }
 
     /**
@@ -77,22 +111,31 @@ public class ShfeInventoryFetcher {
 
     private BigDecimal parseInventoryFromDocument(Document doc, String dateStr) {
         Elements tables = doc.select("table");
+        BigDecimal lastTotalRow = null;
         for (Element table : tables) {
             Elements rows = table.select("tr");
-            BigDecimal total = null;
             for (Element row : rows) {
                 String rowText = row.text();
                 if (rowText.contains("总计")) {
-                    total = extractNumberFromRow(row);
-                    if (total != null) {
-                        return total;
+                    BigDecimal v = extractNumberFromRow(row);
+                    if (v != null) {
+                        return v;
+                    }
+                }
+                if (rowText.contains("合计")) {
+                    BigDecimal v = extractNumberFromRow(row);
+                    if (v != null) {
+                        lastTotalRow = v;
                     }
                 }
             }
-            total = sumFuturesColumn(rows);
-            if (total != null) {
-                return total;
+            BigDecimal sum = sumFuturesColumn(rows);
+            if (sum != null && sum.compareTo(BigDecimal.ZERO) > 0) {
+                return sum;
             }
+        }
+        if (lastTotalRow != null && lastTotalRow.compareTo(BigDecimal.ZERO) > 0) {
+            return lastTotalRow;
         }
         return tryExtractFromText(doc.html(), dateStr);
     }
@@ -120,7 +163,7 @@ public class ShfeInventoryFetcher {
                             regionCol = i;
                         } else if ("仓库".equals(h)) {
                             warehouseCol = i;
-                        } else if ("期货".equals(h) || h.contains("今日注册仓单")) {
+                        } else if ("期货".equals(h) || h.contains("今日注册仓单") || h.contains("注册仓单") || "仓单".equals(h)) {
                             futuresCol = i;
                         } else if ("增减".equals(h)) {
                             changeCol = i;
@@ -199,8 +242,8 @@ public class ShfeInventoryFetcher {
             }
             if (!foundHeader) {
                 for (int i = 0; i < cells.size(); i++) {
-                    String h = cells.get(i).text();
-                    if ("期货".equals(h) || h.contains("今日注册仓单")) {
+                    String h = cells.get(i).text().trim();
+                    if ("期货".equals(h) || h.contains("今日注册仓单") || h.contains("注册仓单") || "仓单".equals(h)) {
                         futuresColIdx = i;
                         foundHeader = true;
                         break;

@@ -131,7 +131,7 @@ public class SilverInventoryApiServiceImpl implements SilverInventoryApiService 
                 silverSaved++;
             }
             BigDecimal fuKg = shfeInventoryFetcher.fetchByDate(d, PRODUCT_FU);
-            if (fuKg != null) {
+            if (fuKg != null && fuKg.compareTo(BigDecimal.ZERO) > 0) {
                 saveFuelByDate(d, fuKg);
                 fuelSaved++;
             }
@@ -143,7 +143,7 @@ public class SilverInventoryApiServiceImpl implements SilverInventoryApiService 
     }
 
     private void saveFuelByDate(LocalDate recordDate, BigDecimal inventoryKg) {
-        if (inventoryKg == null) {
+        if (inventoryKg == null || inventoryKg.compareTo(BigDecimal.ZERO) <= 0) {
             return;
         }
         fuelInventoryMapper.deleteByDate(recordDate);

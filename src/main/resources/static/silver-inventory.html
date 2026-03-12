@@ -104,6 +104,9 @@
     <div class="card feed">
       <h2 id="cardTitle">每日白银库存列表</h2>
       <p class="hint">选择品种与年月查看该月数据，图表与列表同步切换。较前日：正数为增、负数为减。数据需在「数据同步」中获取该月库存（白银+燃油）。</p>
+      <p class="hint" id="shfeDetailLinkWrap" style="display:none;margin-bottom:8px;">
+        <a id="shfeDetailLink" href="#" target="_blank" rel="noopener" style="color:#fb923c;font-size:0.9rem;">上期所详情</a>
+      </p>
       <div class="form-row-month">
         <label>品种</label>
         <div class="month-select-wrap">
@@ -189,6 +192,25 @@
           container.classList.remove('product-ag', 'product-fu');
           container.classList.add('product-' + id);
         }
+        var wrap = document.getElementById('shfeDetailLinkWrap');
+        var link = document.getElementById('shfeDetailLink');
+        if (wrap && link) {
+          if (id === 'fu') {
+            wrap.style.display = '';
+            link.href = shfeFuDetailUrl(null);
+          } else {
+            wrap.style.display = 'none';
+          }
+        }
+      }
+
+      function shfeFuDetailUrl(recordDate) {
+        var yyyyMMdd = recordDate ? (recordDate + '').replace(/-/g, '') : '';
+        if (yyyyMMdd.length !== 8) {
+          var d = new Date();
+          yyyyMMdd = d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0');
+        }
+        return 'https://www.shfe.com.cn/data/tradedata/future/stockdata/dailystock_' + yyyyMMdd + '/ZH/shfe/fu.html';
       }
 
       function getProductId() {
@@ -317,7 +339,16 @@
             if (list.length === 0) {
               inventoryTableBody.innerHTML = '<tr><td colspan="4" class="empty-tip">暂无数据，请在「数据同步」中获取该月库存</td></tr>';
               updateChart([]);
+              if (pid === 'fu') {
+                var shfeLink = document.getElementById('shfeDetailLink');
+                if (shfeLink) shfeLink.href = shfeFuDetailUrl(null);
+              }
               return;
+            }
+            if (pid === 'fu') {
+              var firstDate = list[0] && list[0].recordDate;
+              var shfeLink = document.getElementById('shfeDetailLink');
+              if (shfeLink) shfeLink.href = shfeFuDetailUrl(firstDate);
             }
             var detailBase = detailPageBase[pid];
             inventoryTableBody.innerHTML = list.map(function (row) {

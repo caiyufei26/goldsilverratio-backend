@@ -39,8 +39,9 @@ public class FundFilterService {
     private static final Logger LOG = LoggerFactory.getLogger(FundFilterService.class);
     private static final ObjectMapper OM = new ObjectMapper();
 
+    /** 基金持仓接口：topline 为请求返回的持仓条数，尽量调大以获取全部持仓（东方财富页面通常展示全部需 topline 足够大）。 */
     private static final String FUND_HOLDINGS_URL =
-            "https://fundf10.eastmoney.com/FundArchivesDatas.aspx?type=jjcc&code=%s&topline=200&year=&month=&rt=%s";
+            "https://fundf10.eastmoney.com/FundArchivesDatas.aspx?type=jjcc&code=%s&topline=1000&year=&month=&rt=%s";
     /** 业绩报表接口，返回每股收益(元)，报告期对应累计每股收益 */
     private static final String FINANCIAL_DATA_URL =
             "https://datacenter.eastmoney.com/api/data/v1/get";
@@ -927,28 +928,33 @@ public class FundFilterService {
                 return holdings;
             }
 
-            Element firstTable = tables.first();
-            Elements rows = firstTable.select("tbody tr");
-            for (Element row : rows) {
-                Elements tds = row.select("td");
-                if (tds.size() < 4) {
-                    continue;
-                }
-                String stockCode = tds.get(1).text().trim();
-                String stockName = tds.get(2).text().trim();
-                int weightIdx = tds.size() >= 9 ? 6 : 4;
-                String weightStr = (weightIdx < tds.size() ? tds.get(weightIdx) : tds.get(3))
-                        .text().trim().replace("%", "");
+            java.util.Set<String> seenCodes = new java.util.LinkedHashSet<>();
+            for (Element table : tables) {
+                Elements rows = table.select("tbody tr");
+                for (Element row : rows) {
+                    Elements tds = row.select("td");
+                    if (tds.size() < 4) {
+                        continue;
+                    }
+                    String stockCode = tds.get(1).text().trim();
+                    String stockName = tds.get(2).text().trim();
+                    if (stockCode.isEmpty() || stockName.isEmpty()) {
+                        continue;
+                    }
+                    if (seenCodes.contains(stockCode)) {
+                        continue;
+                    }
+                    seenCodes.add(stockCode);
+                    int weightIdx = tds.size() >= 9 ? 6 : 4;
+                    String weightStr = (weightIdx < tds.size() ? tds.get(weightIdx) : tds.get(3))
+                            .text().trim().replace("%", "");
 
-                if (stockCode.isEmpty() || stockName.isEmpty()) {
-                    continue;
+                    Map<String, Object> h = new LinkedHashMap<>();
+                    h.put("stockCode", stockCode);
+                    h.put("stockName", stockName);
+                    h.put("weight", parseDouble(weightStr));
+                    holdings.add(h);
                 }
-
-                Map<String, Object> h = new LinkedHashMap<>();
-                h.put("stockCode", stockCode);
-                h.put("stockName", stockName);
-                h.put("weight", parseDouble(weightStr));
-                holdings.add(h);
             }
         } catch (Exception e) {
             LOG.error("获取基金持仓失败 {}: {}", fundCode, e.getMessage());

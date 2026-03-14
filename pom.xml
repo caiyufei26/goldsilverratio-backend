@@ -12,7 +12,7 @@
         <relativePath />
     </parent>
 
-    <groupId>com.goldsilverratio</groupId>
+    <groupId>com.canLite</groupId>
     <artifactId>CAN-lite</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>jar</packaging>
@@ -67,7 +67,7 @@
     </dependencies>
 
     <build>
-        <finalName>goldsilverratio</finalName>
+        <finalName>canLite</finalName>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>

@@ -21,12 +21,9 @@ import java.math.RoundingMode;
 import java.net.URLEncoder;
 import java.security.SecureRandom;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.security.cert.X509Certificate;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 
 /**
  * 基金持仓筛选服务：输入基金代码，查询持仓股票，
@@ -53,6 +50,12 @@ public class FundFilterService {
     /** 东方财富个股公告接口，用于获取减持相关公告（标题或分类含“减持”） */
     private static final String ANNOTICE_API_URL =
             "https://np-anotice-stock.eastmoney.com/api/security/ann";
+    /** 东方财富日 K 线接口，用于计算 60/125/250 日涨跌幅与 RPS。secid=市场.代码，klt=101 日 K，fqt=1 前复权，lmt 条数 */
+    private static final String KLINE_URL =
+            "https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=%s&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61&klt=101&fqt=1&end=20500000&lmt=%d";
+    /** 格隆汇 RPS/涨跌幅接口：market=sh|sz，code=6位代码，tradingDayCount=60|125|250。返回 result 为 0~1 的 RPS 或涨跌幅。 */
+    private static final String GELONGHUI_RPS_URL =
+            "https://hybrid.gelonghui.com/check/rps/stock-net-change?market=%s&code=%s&tradingDayCount=%d";
     private static final String UA =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
 
@@ -359,6 +362,241 @@ public class FundFilterService {
             }
         }
         return result;
+    }
+
+    /**
+     * 查询单只股票的 RPS60、RPS125、RPS250（个股相对涨幅强度）。
+     * RPS 来自格隆汇接口；区间涨跌幅由东方财富 K 线计算；股票名称来自东方财富行情。
+     *
+     * @param stockCode 股票代码，如 002028
+     * @return stockCode、stockName、return60/125/250（区间涨跌幅%）、rps60/125/250（0~100，格隆汇）
+     */
+    public Map<String, Object> getStockRps(String stockCode) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("stockCode", stockCode);
+        result.put("stockName", null);
+        result.put("return60", null);
+        result.put("return125", null);
+        result.put("return250", null);
+        result.put("rps60", null);
+        result.put("rps125", null);
+        result.put("rps250", null);
+        if (stockCode == null || stockCode.trim().isEmpty()) {
+            result.put("error", "股票代码不能为空");
+            return result;
+        }
+        stockCode = stockCode.trim();
+        if (!isAShareCode(stockCode)) {
+            result.put("error", "仅支持A股股票代码");
+            return result;
+        }
+        String codeSix = normalizeStockCode(stockCode);
+        String market = codeSix.startsWith("6") ? "sh" : "sz";
+        for (int days : new int[]{60, 125, 250}) {
+            Double rps = fetchGelonghuiRps(market, codeSix, days);
+            if (rps != null) {
+                if (days == 60) {
+                    result.put("rps60", rps);
+                } else if (days == 125) {
+                    result.put("rps125", rps);
+                } else {
+                    result.put("rps250", rps);
+                }
+            }
+        }
+        String secid = toSecid(codeSix);
+        List<double[]> kline = fetchStockKline(secid, 300);
+        if (kline != null && kline.size() >= 2) {
+            int n = kline.size();
+            double closeLatest = kline.get(n - 1)[1];
+            if (n > 60) {
+                double close60 = kline.get(n - 1 - 60)[1];
+                if (close60 > 0) {
+                    result.put("return60", (closeLatest - close60) / close60 * 100);
+                }
+            }
+            if (n > 125) {
+                double close125 = kline.get(n - 1 - 125)[1];
+                if (close125 > 0) {
+                    result.put("return125", (closeLatest - close125) / close125 * 100);
+                }
+            }
+            if (n > 250) {
+                double close250 = kline.get(n - 1 - 250)[1];
+                if (close250 > 0) {
+                    result.put("return250", (closeLatest - close250) / close250 * 100);
+                }
+            }
+        }
+        String stockName = parseStockNameFromKline(secid);
+        if (stockName != null) {
+            result.put("stockName", stockName);
+        }
+        if (result.get("rps60") == null && result.get("rps125") == null && result.get("rps250") == null) {
+            result.put("error", "无法获取 RPS 数据，请检查股票代码或稍后重试");
+        }
+        return result;
+    }
+
+    /** 批量 RPS 最多返回只数，避免单次请求过久。 */
+    private static final int RPS_BATCH_MAX = 20;
+
+    /**
+     * 批量查询多只股票的 RPS60、RPS125、RPS250。用于基金持仓列表展示。
+     *
+     * @param stockCodes 股票代码列表，仅 A 股；超过 {@link #RPS_BATCH_MAX} 只取前若干只
+     * @return 与入参顺序一致的列表，每项含 stockCode、stockName、rps60、rps125、rps250
+     */
+    public List<Map<String, Object>> getStockRpsBatch(List<String> stockCodes) {
+        List<Map<String, Object>> out = new ArrayList<>();
+        if (stockCodes == null || stockCodes.isEmpty()) {
+            return out;
+        }
+        List<String> list = new ArrayList<>();
+        for (String code : stockCodes) {
+            if (code != null && isAShareCode(code.trim())) {
+                list.add(code.trim());
+            }
+            if (list.size() >= RPS_BATCH_MAX) {
+                break;
+            }
+        }
+        for (String code : list) {
+            Map<String, Object> one = getStockRps(code);
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("stockCode", one.get("stockCode"));
+            row.put("stockName", one.get("stockName"));
+            row.put("rps60", one.get("rps60"));
+            row.put("rps125", one.get("rps125"));
+            row.put("rps250", one.get("rps250"));
+            out.add(row);
+        }
+        return out;
+    }
+
+    /**
+     * 调用格隆汇接口获取指定交易日的 RPS（或涨跌幅）。返回 0~100 的百分比。
+     *
+     * @param market  sh 或 sz
+     * @param code    6 位股票代码
+     * @param tradingDayCount 60、125 或 250
+     * @return RPS 0~100，失败返回 null
+     */
+    private Double fetchGelonghuiRps(String market, String code, int tradingDayCount) {
+        String url = String.format(GELONGHUI_RPS_URL, market, code, tradingDayCount);
+        try {
+            String json = fetchWithRelaxedSsl(url, "https://hybrid.gelonghui.com/", 10000);
+            JsonNode root = OM.readTree(json);
+            if (root.path("statusCode").asInt(0) != 200) {
+                return null;
+            }
+            JsonNode resultNode = root.path("result");
+            if (resultNode.isMissingNode() || resultNode.isNull()) {
+                return null;
+            }
+            double v = resultNode.asDouble(Double.NaN);
+            if (Double.isNaN(v)) {
+                return null;
+            }
+            if (v <= 1 && v >= 0) {
+                return v * 100;
+            }
+            return v;
+        } catch (Exception e) {
+            LOG.debug("格隆汇 RPS {} 天请求失败 {}: {}", tradingDayCount, code, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 统一为 6 位股票代码（不足左补零），便于与 clist 返回的 f12 匹配。
+     */
+    private String normalizeStockCode(String code) {
+        if (code == null || code.trim().isEmpty()) {
+            return "";
+        }
+        String s = code.trim();
+        try {
+            int num = Integer.parseInt(s);
+            return String.format("%06d", num);
+        } catch (NumberFormatException e) {
+            if (s.length() >= 6) {
+                return s.substring(0, 6);
+            }
+            return String.format("%6s", s).replace(' ', '0');
+        }
+    }
+
+    /**
+     * 将 6 位 A 股代码转为东方财富 secid。6 开头沪市 1.xxxxxx，其余深市 0.xxxxxx。
+     */
+    private String toSecid(String code) {
+        if (code == null || code.length() != 6) {
+            return "0." + (code != null ? code : "");
+        }
+        return code.startsWith("6") ? "1." + code : "0." + code;
+    }
+
+    /**
+     * 拉取个股日 K 线（前复权）。返回按日期升序的 [日期数值, 收盘价] 列表，日期为 yyyyMMdd 整数。
+     */
+    private List<double[]> fetchStockKline(String secid, int lmt) {
+        String url = String.format(KLINE_URL, secid, lmt);
+        try {
+            String json = fetchWithRelaxedSsl(url, "https://quote.eastmoney.com/", 15000);
+            JsonNode root = OM.readTree(json);
+            JsonNode data = root.path("data");
+            if (data.isMissingNode() || data.isNull()) {
+                return null;
+            }
+            JsonNode klines = data.path("klines");
+            if (!klines.isArray() || klines.size() == 0) {
+                return null;
+            }
+            List<double[]> out = new ArrayList<>(klines.size());
+            for (JsonNode line : klines) {
+                String s = line.asText("");
+                if (s == null || s.isEmpty()) {
+                    continue;
+                }
+                String[] parts = s.split(",");
+                if (parts.length < 3) {
+                    continue;
+                }
+                String dateStr = parts[0].replace("-", "");
+                double close = parseDouble(parts[2]);
+                try {
+                    int dateNum = Integer.parseInt(dateStr);
+                    out.add(new double[]{dateNum, close});
+                } catch (NumberFormatException ignored) {
+                }
+            }
+            return out;
+        } catch (Exception e) {
+            LOG.warn("拉取 K 线失败 {}: {}", secid, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 从行情接口获取股票名称（可选）。失败返回 null。
+     */
+    private String parseStockNameFromKline(String secid) {
+        try {
+            String url = "https://push2.eastmoney.com/api/qt/stock/get?secid=" + secid + "&fields=f58";
+            String json = fetchWithRelaxedSsl(url, "https://quote.eastmoney.com/", 5000);
+            JsonNode root = OM.readTree(json);
+            JsonNode data = root.path("data");
+            if (data.isMissingNode() || data.isNull()) {
+                return null;
+            }
+            if (data.has("f58")) {
+                return data.get("f58").asText(null);
+            }
+            return null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /**
@@ -928,7 +1166,7 @@ public class FundFilterService {
                 return holdings;
             }
 
-            java.util.Set<String> seenCodes = new java.util.LinkedHashSet<>();
+            Set<String> seenCodes = new LinkedHashSet<>();
             for (Element table : tables) {
                 Elements rows = table.select("tbody tr");
                 for (Element row : rows) {

@@ -9,121 +9,167 @@
     body {
       font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
       min-height: 100vh;
-      background: linear-gradient(165deg, #0c1222 0%, #1a2332 35%, #0f2847 70%, #0d2137 100%);
+      background: linear-gradient(160deg, #0f172a 0%, #1e293b 30%, #0f2847 65%, #0c1222 100%);
       color: #e2e8f0;
-      padding: 28px 20px 64px;
-      line-height: 1.5;
+      padding: 32px 24px 72px;
+      line-height: 1.55;
     }
     .container { max-width: 980px; margin: 0 auto; }
-    h1 {
-      font-size: 1.65rem; font-weight: 600; color: #fff;
-      margin-bottom: 6px; letter-spacing: 0.03em;
-    }
+    .page-header { margin-bottom: 28px; }
     .back-link {
-      display: inline-block; margin-bottom: 20px; color: #93c5fd;
-      text-decoration: none; font-size: 0.875rem; transition: color 0.15s;
+      display: inline-flex; align-items: center; gap: 6px; margin-bottom: 16px; color: #93c5fd;
+      text-decoration: none; font-size: 0.875rem; transition: color 0.15s, transform 0.15s;
+      padding: 6px 0;
     }
-    .back-link:hover { color: #bfdbfe; text-decoration: underline; }
+    .back-link:hover { color: #bfdbfe; text-decoration: none; transform: translateX(-2px); }
+    h1 {
+      font-size: 1.75rem; font-weight: 600; color: #fff;
+      margin-bottom: 8px; letter-spacing: 0.02em;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+    .page-header .hint {
+      font-size: 0.875rem; color: rgba(255,255,255,0.55);
+      line-height: 1.6; max-width: 720px;
+    }
 
     .card {
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 18px; padding: 26px 28px; margin-bottom: 22px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 16px; padding: 24px 26px; margin-bottom: 20px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+      transition: box-shadow 0.2s, border-color 0.2s;
     }
+    .card:hover { border-color: rgba(255,255,255,0.12); box-shadow: 0 6px 28px rgba(0,0,0,0.2); }
+    .card.query-card { background: linear-gradient(135deg, rgba(99,102,241,0.08) 0%, rgba(79,70,229,0.05) 100%); border-color: rgba(99,102,241,0.2); }
     .form-row {
-      display: flex; gap: 16px; align-items: center; flex-wrap: wrap;
-      margin-bottom: 14px;
+      display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+      margin-bottom: 12px;
     }
     .form-row label {
-      font-size: 0.9rem; color: rgba(255,255,255,0.75); white-space: nowrap;
+      font-size: 0.9rem; color: rgba(255,255,255,0.78); white-space: nowrap;
     }
     .form-row input, .form-row select {
-      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14);
-      color: #fff; border-radius: 10px; padding: 10px 14px; font-size: 0.95rem;
+      background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);
+      color: #fff; border-radius: 10px; padding: 11px 16px; font-size: 0.95rem;
       transition: border-color 0.2s, box-shadow 0.2s;
     }
     .form-row input:focus, .form-row select:focus {
-      outline: none; border-color: rgba(99,102,241,0.5);
-      box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+      outline: none; border-color: rgba(99,102,241,0.6);
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.18);
     }
-    .form-row input::placeholder { color: rgba(255,255,255,0.25); }
+    .form-row input::placeholder { color: rgba(255,255,255,0.3); }
     .btn {
       background: linear-gradient(135deg, #4f46e5, #6366f1);
-      color: #fff; border: none; border-radius: 10px; padding: 10px 24px;
+      color: #fff; border: none; border-radius: 10px; padding: 11px 26px;
       font-size: 0.9rem; font-weight: 500; cursor: pointer;
-      transition: transform 0.1s, box-shadow 0.2s;
+      transition: transform 0.12s, box-shadow 0.2s;
     }
-    .btn:hover { box-shadow: 0 4px 14px rgba(79,70,229,0.4); }
+    .btn:hover { box-shadow: 0 6px 20px rgba(79,70,229,0.45); transform: translateY(-1px); }
     .btn:active { transform: scale(0.98); }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; transform: none; }
 
     .hint {
       font-size: 0.825rem; color: rgba(255,255,255,0.5);
       margin-bottom: 14px; line-height: 1.6;
     }
 
-    .status { font-size: 0.875rem; margin-top: 14px; min-height: 1.3em; }
+    .status { font-size: 0.875rem; margin-top: 12px; min-height: 1.3em; }
     .status.loading { color: #fbbf24; }
     .status.error { color: #f87171; }
     .status.success { color: #34d399; }
 
     .summary {
-      display: flex; gap: 16px; flex-wrap: wrap;
-      margin-bottom: 20px;
+      display: flex; gap: 14px; flex-wrap: wrap;
+      margin-bottom: 22px;
     }
     .summary .item {
-      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.06);
-      border-radius: 12px; padding: 14px 20px; min-width: 128px;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px; padding: 16px 22px; min-width: 120px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
-    .summary .item .label { color: rgba(255,255,255,0.5); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    .summary .item .label {
+      color: rgba(255,255,255,0.55); font-size: 0.75rem; text-transform: uppercase;
+      letter-spacing: 0.06em; font-weight: 600;
+    }
     .summary .item .value {
-      font-size: 1.35rem; font-weight: 600; color: #fff; margin-top: 6px;
+      font-size: 1.4rem; font-weight: 600; color: #fff; margin-top: 8px;
     }
 
-    .table-wrap { overflow-x: auto; margin-top: 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); }
+    .table-wrap {
+      overflow-x: auto; margin-top: 14px; border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.08); box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+    }
     table {
       width: 100%; border-collapse: collapse; font-size: 0.875rem;
       min-width: 700px;
     }
     th {
-      text-align: left; padding: 12px 14px; font-weight: 500;
-      color: rgba(255,255,255,0.5); border-bottom: 1px solid rgba(255,255,255,0.08);
-      white-space: nowrap; font-size: 0.8rem; background: rgba(0,0,0,0.15);
+      text-align: left; padding: 14px 16px; font-weight: 600;
+      color: rgba(255,255,255,0.6); border-bottom: 1px solid rgba(255,255,255,0.1);
+      white-space: nowrap; font-size: 0.78rem; background: rgba(0,0,0,0.2);
+      letter-spacing: 0.02em;
     }
     td {
-      padding: 11px 14px; border-bottom: 1px solid rgba(255,255,255,0.04);
+      padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.05);
       white-space: nowrap;
     }
-    tbody tr:hover td { background: rgba(255,255,255,0.04); }
+    tbody tr { transition: background 0.15s; }
+    tbody tr:hover td { background: rgba(255,255,255,0.05); }
     .value-positive { color: #f87171; }
     .value-negative { color: #34d399; }
     .value-highlight { color: #fbbf24; font-weight: 600; }
+    .rps250-gt { color: #34d399; font-weight: 600; }
     .tag-yuan { color: #34d399; font-weight: 600; }
     .tag-fang { color: #fbbf24; font-weight: 600; }
     .tag-yuce { color: #60a5fa; font-weight: 600; }
     .link-detail { color: #60a5fa; margin-left: 6px; cursor: pointer; text-decoration: none; }
     .link-detail:hover { text-decoration: underline; }
-    .modal-overlay { position: fixed; left: 0; top: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.65); z-index: 1000; display: none; justify-content: center; align-items: center; padding: 24px; }
+    #reductionTable th:last-child,
+    #reductionTable td:last-child { text-align: center; width: 5.5rem; min-width: 5.5rem; }
+    #reductionTable td:last-child .link-detail { margin-left: 0; }
+    .modal-overlay {
+      position: fixed; left: 0; top: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.7); z-index: 1000; display: none;
+      justify-content: center; align-items: center; padding: 24px;
+    }
     .modal-overlay.show { display: flex; }
-    .modal-box { background: #1e293b; border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; max-width: 520px; width: 100%; max-height: 82vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0,0,0,0.4); }
-    .modal-title { padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 0.95rem; font-weight: 500; }
-    .modal-body { padding: 18px; overflow: auto; white-space: pre-wrap; word-break: break-word; color: rgba(255,255,255,0.9); font-size: 0.9rem; line-height: 1.55; }
-    .modal-close { padding: 12px 18px; border-top: 1px solid rgba(255,255,255,0.1); text-align: right; }
-    .modal-close button { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #cbd5e1; padding: 8px 18px; border-radius: 8px; cursor: pointer; font-size: 0.875rem; }
+    .modal-box {
+      background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+      border: 1px solid rgba(255,255,255,0.12); border-radius: 16px;
+      max-width: 520px; width: 100%; max-height: 82vh; overflow: hidden;
+      display: flex; flex-direction: column; box-shadow: 0 24px 56px rgba(0,0,0,0.5);
+    }
+    .modal-title {
+      padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.1);
+      font-size: 0.95rem; font-weight: 600;
+    }
+    .modal-body {
+      padding: 20px; overflow: auto; white-space: pre-wrap; word-break: break-word;
+      color: rgba(255,255,255,0.9); font-size: 0.9rem; line-height: 1.6;
+    }
+    .modal-close { padding: 14px 20px; border-top: 1px solid rgba(255,255,255,0.1); text-align: right; }
+    .modal-close button {
+      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+      color: #cbd5e1; padding: 9px 20px; border-radius: 10px;
+      cursor: pointer; font-size: 0.875rem; transition: background 0.2s, color 0.2s;
+    }
     .modal-close button:hover { background: rgba(255,255,255,0.12); color: #fff; }
-    .section-title-card { font-size: 1.02rem; margin-bottom: 10px; font-weight: 600; }
+    .section-title-card {
+      font-size: 1.05rem; margin-bottom: 12px; font-weight: 600;
+      padding-left: 12px; border-left: 4px solid currentColor; border-radius: 0 4px 4px 0;
+    }
     .empty-tip {
-      text-align: center; padding: 40px 16px; color: rgba(255,255,255,0.4);
+      text-align: center; padding: 44px 20px; color: rgba(255,255,255,0.45);
+      font-size: 0.9rem;
     }
 
     .toggle-btn {
       background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
-      color: rgba(255,255,255,0.75); border-radius: 10px; padding: 8px 18px;
+      color: rgba(255,255,255,0.75); border-radius: 10px; padding: 9px 20px;
       font-size: 0.85rem; cursor: pointer; margin-top: 18px;
-      transition: border-color 0.2s, color 0.2s;
+      transition: border-color 0.2s, color 0.2s, background 0.2s;
     }
-    .toggle-btn:hover { border-color: rgba(255,255,255,0.25); color: #fff; }
+    .toggle-btn:hover { border-color: rgba(255,255,255,0.25); color: #fff; background: rgba(255,255,255,0.08); }
 
     .stock-reduction-result { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); }
     .stock-reduction-result.yes { border-color: rgba(167,139,250,0.4); color: #c4b5fd; }
@@ -139,11 +185,13 @@
 </head>
 <body>
   <div class="container">
-    <a class="back-link" href="/index.html">&larr; 返回首页</a>
-    <h1>基金持仓筛选</h1>
-    <p class="hint">输入基金代码，一次查询同时展示：C（每股收益同比 &gt; 阈值）、A（年度每股收益 原版/放宽/业绩预增）、I（机构认同度 · 大股东减持计划执行期间）满足条件的股票。</p>
+    <header class="page-header">
+      <a class="back-link" href="/index.html">&larr; 返回首页</a>
+      <h1>基金持仓筛选</h1>
+      <p class="hint">输入基金代码，一次查询同时展示：C（每股收益同比 &gt; 阈值）、A（年度每股收益 原版/放宽/业绩预增）、I（机构认同度 · 大股东减持计划执行期间）满足条件的股票。</p>
+    </header>
 
-    <div class="card">
+    <div class="card query-card">
       <div class="form-row">
         <label>基金代码</label>
         <input type="text" id="fundCode" placeholder="如 110011" style="width:160px;" />
@@ -156,6 +204,27 @@
 
     <div id="resultArea" style="display:none;">
       <div class="summary" id="summaryArea"></div>
+
+      <div class="card" id="combinedMatchCard" style="display:none;">
+        <h2 class="section-title-card" style="color:#60a5fa;">综合满足</h2>
+        <p class="hint" style="margin-top:0;margin-bottom:8px;">同时满足：L（持仓 RPS 列表 RPS250&gt;87）、C（每股收益同比&gt;阈值）、A（年度每股收益 有数据）、且不在 I（大股东减持计划执行期间）的股票。</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>股票代码</th>
+                <th>股票名称</th>
+                <th>持仓占比</th>
+                <th>RPS250</th>
+                <th>C 同比</th>
+                <th>A 符合</th>
+              </tr>
+            </thead>
+            <tbody id="combinedMatchBody"></tbody>
+          </table>
+        </div>
+      </div>
 
       <div class="card">
         <h2 class="section-title-card" style="color:#fbbf24;">C - 每股收益同比增长率 &gt; 阈值 · 满足条件的股票</h2>
@@ -202,11 +271,30 @@
         </div>
       </div>
 
-      <div class="card" id="reductionCard" style="display:none;">
-        <h2 class="section-title-card" style="color:#a78bfa;">I - 机构认同度 · 大股东减持计划执行期间</h2>
-        <p class="hint" style="margin-top:0;margin-bottom:8px;">持仓中正在减持的股票（与股票代码查询减持信息同结构），仅在有基金查询结果且存在正在减持持仓时展示。</p>
+      <div class="card" id="rpsListCard" style="display:none;">
+        <h2 class="section-title-card" style="color:#93c5fd;">L - RPS 列表</h2>
+        <div class="status" id="rpsListStatus"></div>
         <div class="table-wrap">
           <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>股票代码</th>
+                <th>股票名称</th>
+                <th>RPS60</th>
+                <th>RPS125</th>
+                <th>RPS250</th>
+              </tr>
+            </thead>
+            <tbody id="rpsListBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card" id="reductionCard" style="display:none;">
+        <h2 class="section-title-card" style="color:#a78bfa;">I - 机构认同度 · 大股东减持计划执行期间</h2>
+        <div class="table-wrap">
+          <table id="reductionTable">
             <thead>
               <tr>
                 <th>#</th>
@@ -230,7 +318,6 @@
       <button class="toggle-btn" id="btnToggleAll">显示全部持仓</button>
 
       <div class="card" id="allArea" style="display:none;margin-top:12px;">
-        <h2 class="section-title-card" style="color:rgba(255,255,255,0.6);">全部A股持仓（含 C / A 数据）</h2>
         <div class="table-wrap">
           <table>
             <thead>
@@ -242,7 +329,8 @@
                 <th>C 同比</th>
                 <th>C 满足</th>
                 <th>A 符合</th>
-                <th>减持类别</th>
+                <th>I 符合</th>
+                <th>RPS250</th>
                 <th id="thAllYear1">今年增长率</th>
                 <th id="thAllYear2">去年增长率</th>
                 <th id="thAllYear3">前年增长率</th>
@@ -287,6 +375,13 @@
         <div class="modal-close"><button type="button" id="detailModalClose">关闭</button></div>
       </div>
     </div>
+    <div id="allDeductDetailModal" class="modal-overlay">
+      <div class="modal-box">
+        <div class="modal-title">扣非业绩详情</div>
+        <div class="modal-body" id="allDeductDetailModalBody"></div>
+        <div class="modal-close"><button type="button" id="allDeductDetailModalClose">关闭</button></div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -309,6 +404,74 @@
       var btnToggleAll = document.getElementById('btnToggleAll');
       var reductionCard = document.getElementById('reductionCard');
       if (reductionCard) reductionCard.style.display = 'none';
+
+      var rpsListCard = document.getElementById('rpsListCard');
+      var rpsListStatus = document.getElementById('rpsListStatus');
+      var rpsListBody = document.getElementById('rpsListBody');
+
+      var RPS250_GT = 87;
+
+      function loadRpsList(stockList, onRpsLoaded) {
+        if (!rpsListCard || !rpsListBody) return;
+        if (!stockList || stockList.length === 0) {
+          rpsListCard.style.display = 'none';
+          if (onRpsLoaded) onRpsLoaded({});
+          return;
+        }
+        rpsListCard.style.display = 'block';
+        rpsListStatus.textContent = 'RPS 加载中…';
+        rpsListStatus.className = 'status loading';
+        rpsListBody.innerHTML = '<tr><td colspan="6" class="empty-tip">加载中</td></tr>';
+        var stocks = stockList.map(function (r) { return r.stockCode || r.code; }).filter(Boolean);
+        fetch('/api/fund-filter/rps-batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ stocks: stocks })
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (res) {
+            rpsListStatus.textContent = '';
+            rpsListStatus.className = 'status success';
+            var rpsMap = {};
+            if (res && res.code === 200 && res.data && res.data.length) {
+              res.data.forEach(function (row) {
+                var code = row.stockCode;
+                if (code) rpsMap[code] = { rps60: row.rps60, rps125: row.rps125, rps250: row.rps250 };
+              });
+              var list250Gt87 = res.data.filter(function (row) {
+                var v = row.rps250;
+                return v != null && !isNaN(Number(v)) && Number(v) > RPS250_GT;
+              });
+              if (list250Gt87.length === 0) {
+                rpsListBody.innerHTML = '<tr><td colspan="6" class="empty-tip">没有满足 L 条件且有持仓占比的股票</td></tr>';
+              } else {
+                rpsListBody.innerHTML = list250Gt87.map(function (row, i) {
+                  var r60 = row.rps60 != null ? Number(row.rps60).toFixed(2) + '%' : '--';
+                  var r125 = row.rps125 != null ? Number(row.rps125).toFixed(2) + '%' : '--';
+                  var r250 = row.rps250 != null ? Number(row.rps250).toFixed(2) + '%' : '--';
+                  return '<tr><td>' + (i + 1) + '</td><td>' + (row.stockCode || '--') + '</td><td>' + (row.stockName || '--') + '</td><td>' + r60 + '</td><td>' + r125 + '</td><td>' + r250 + '</td></tr>';
+                }).join('');
+              }
+            } else {
+              rpsListBody.innerHTML = '<tr><td colspan="6" class="empty-tip">暂无 RPS 数据</td></tr>';
+            }
+            var list250Gt87 = (res && res.code === 200 && res.data) ? res.data.filter(function (row) {
+              var v = row.rps250;
+              return v != null && !isNaN(Number(v)) && Number(v) > RPS250_GT;
+            }) : [];
+            var summaryLVal = document.getElementById('summaryLValue');
+            if (summaryLVal) summaryLVal.textContent = list250Gt87.length + ' 只';
+            if (onRpsLoaded) onRpsLoaded(rpsMap, list250Gt87);
+          })
+          .catch(function (err) {
+            rpsListStatus.textContent = 'RPS 加载失败：' + (err && err.message ? err.message : '网络错误');
+            rpsListStatus.className = 'status error';
+            rpsListBody.innerHTML = '<tr><td colspan="6" class="empty-tip">加载失败</td></tr>';
+            var summaryLVal = document.getElementById('summaryLValue');
+            if (summaryLVal) summaryLVal.textContent = '0 只';
+            if (onRpsLoaded) onRpsLoaded({}, []);
+          });
+      }
 
       function formatEps(val) {
         if (val == null) return '--';
@@ -412,7 +575,7 @@
         if (num >= 1e4) return (num / 1e4).toFixed(2) + '万';
         return num.toFixed(0);
       }
-      function renderRowAll(idx, merged, yearN, yearN1, yearN2, useShifted, reductionTypeMap) {
+      function renderRowAll(idx, merged, yearN, yearN1, yearN2, useShifted, reductionTypeMap, rpsMap) {
         var code = merged.stockCode || '--';
         var name = merged.stockName || '--';
         var weight = formatWeight(merged.weight);
@@ -424,6 +587,14 @@
           ? (reductionCategoryMap[reductionTypeMap[merged.stockCode]] || '--') : '--';
         var reductionCategory = reductionCategoryRaw !== '--'
           ? '<span style="color:#f87171;">' + reductionCategoryRaw + '</span>' : '--';
+        var rps250Cell = '--';
+        if (rpsMap && merged.stockCode && rpsMap[merged.stockCode] != null) {
+          var r250 = rpsMap[merged.stockCode].rps250;
+          if (r250 != null && !isNaN(Number(r250))) {
+            var val = Number(r250).toFixed(2) + '%';
+            rps250Cell = Number(r250) > RPS250_GT ? '<span class="rps250-gt">' + val + '</span>' : val;
+          }
+        }
         var detailContent = (merged.aRevenueYoyFromReport != null ? (yearN + '年营收同比：' + Number(merged.aRevenueYoyFromReport).toFixed(2) + '%\n\n') : '') + (merged.aForecastDetail || '');
         var aDetailBtn = (merged.aMatchType === '业绩预增' && (merged.aForecastDetail || merged.aRevenueYoyFromReport != null))
           ? ' <a href="javascript:void(0)" class="link-detail" data-detail="' + (detailContent || '').replace(/"/g, '&quot;').replace(/</g, '&lt;') + '">详情</a>' : '';
@@ -453,7 +624,7 @@
         var deductPreYear = formatPreYear(merged.aDeductPreYear);
         var deductNotice = merged.aDeductNoticeDate || '--';
         return '<tr><td>' + (idx + 1) + '</td><td>' + code + '</td><td>' + name + '</td><td>' + weight + '</td>'
-          + '<td>' + cYoy + '</td><td>' + cOk + '</td><td>' + aTag + aDetailBtn + '</td><td>' + reductionCategory + '</td>'
+          + '<td>' + cYoy + '</td><td>' + cOk + '</td><td>' + aTag + aDetailBtn + '</td><td>' + reductionCategory + '</td><td>' + rps250Cell + '</td>'
           + '<td>' + a1 + '</td><td>' + a2 + '</td><td>' + a3 + '</td>'
           + '<td>' + ae1 + '</td><td>' + ae2 + '</td><td>' + ae3 + '</td>'
           + '<td title="' + (merged.aDeductContent || '').replace(/"/g, '&quot;') + '">' + deductContent + '</td>'
@@ -469,7 +640,7 @@
         }
         var threshold = thresholdInput.value || 40;
 
-        statusMsg.textContent = '查询中，请稍候（C / A / I 同时拉取，约需 5~15 秒）…';
+        statusMsg.textContent = '查询中，请稍候（约需 5~15 秒）…';
         statusMsg.className = 'status loading';
         resultArea.style.display = 'none';
         btnQuery.disabled = true;
@@ -509,22 +680,36 @@
               localStorage.setItem('fundFilter_lastFundCode', (data.fundCode || code || '').toString());
             } catch (e) {}
 
+            function hasWeight(row) {
+              var w = row.weight;
+              return w != null && w !== '' && !isNaN(Number(w)) && Number(w) > 0;
+            }
+            function filterByWeightTop20(list) {
+              return list.filter(hasWeight)
+                .sort(function (a, b) { return Number(b.weight) - Number(a.weight); })
+                .slice(0, 20);
+            }
+            var top20ByWeight = filterByWeightTop20(data.allStocks || []);
+            var top20CodeSet = {};
+            top20ByWeight.forEach(function (r) { top20CodeSet[r.stockCode] = true; });
+            var filtered = filterByWeightTop20(data.filtered || []);
+            var matched = filterByWeightTop20(dataA.matched || []);
+            var listIRaw = dataI.list || [];
+            var listI = dataI.reductionPlanSourceUnavailable ? [] : listIRaw.filter(function (r) { return top20CodeSet[r.stockCode]; });
+
             summaryArea.innerHTML = ''
               + '<div class="item"><div class="label">基金代码</div><div class="value">' + data.fundCode + '</div></div>'
-              + '<div class="item"><div class="label">持仓股票数</div><div class="value">' + (data.holdingCount || 0) + '</div></div>'
-              + '<div class="item"><div class="label">C 满足</div><div class="value" style="color:#fbbf24;">' + (data.filteredCount || 0) + ' 只</div></div>'
-              + '<div class="item"><div class="label">A 满足</div><div class="value" style="color:#34d399;">' + (dataA.matchedCount || 0) + ' 只</div></div>'
-              + '<div class="item"><div class="label">I 减持执行期</div><div class="value" style="color:#a78bfa;">' + (dataI.inReductionPlanCount || 0) + ' 只' + (dataI.reductionPlanSourceUnavailable ? ' <span style="font-size:0.75rem;color:rgba(255,255,255,0.5);">(数据源暂不可用)</span>' : '') + '</div></div>'
-              + '<div class="item"><div class="label">C 阈值</div><div class="value">' + data.threshold + '%</div></div>';
+              + '<div class="item"><div class="label">L 满足</div><div class="value" id="summaryLValue" style="color:#93c5fd;">--</div></div>'
+              + '<div class="item"><div class="label">C 满足</div><div class="value" style="color:#fbbf24;">' + filtered.length + ' 只</div></div>'
+              + '<div class="item"><div class="label">A 满足</div><div class="value" style="color:#34d399;">' + matched.length + ' 只</div></div>'
+              + '<div class="item"><div class="label">I 减持执行期</div><div class="value" style="color:#a78bfa;">' + listI.length + ' 只' + (dataI.reductionPlanSourceUnavailable ? ' <span style="font-size:0.75rem;color:rgba(255,255,255,0.5);">(数据源暂不可用)</span>' : '') + '</div></div>';
 
-            var filtered = data.filtered || [];
             if (filtered.length === 0) {
-              filteredBody.innerHTML = '<tr><td colspan="8" class="empty-tip">没有满足 C 条件的股票</td></tr>';
+              filteredBody.innerHTML = '<tr><td colspan="8" class="empty-tip">没有满足 C 条件且有持仓占比的股票</td></tr>';
             } else {
               filteredBody.innerHTML = filtered.map(function (row, i) { return renderRow(i, row, true); }).join('');
             }
 
-            var matched = dataA.matched || [];
             var listA = dataA.allStocks || [];
             var yearN = dataA.yearN != null ? dataA.yearN : new Date().getFullYear();
             var yearN1 = dataA.yearN1 != null ? dataA.yearN1 : yearN - 1;
@@ -538,12 +723,11 @@
             document.getElementById('thAEps3').textContent = yearN2 + '年每股收益';
             document.getElementById('thAEps3').style.display = '';
             if (matched.length === 0) {
-              matchedBody.innerHTML = '<tr><td colspan="11" class="empty-tip">没有满足 A 条件的股票</td></tr>';
+              matchedBody.innerHTML = '<tr><td colspan="11" class="empty-tip">没有满足 A 条件且有持仓占比的股票</td></tr>';
             } else {
               matchedBody.innerHTML = matched.map(function (row, i) { return renderRowA(i, row, yearN, yearN1, yearN2); }).join('');
             }
 
-            var listI = dataI.list || [];
             var reductionCard = document.getElementById('reductionCard');
             if (dataI.reductionPlanSourceUnavailable) {
               if (reductionCard) reductionCard.style.display = 'block';
@@ -559,8 +743,11 @@
                 var categoryLabel = categoryMap[row.reductionType] || '正在减持';
                 var futureStatus = row.futureReduction ? '<span class="value-highlight">是</span>' : '否';
                 var brief = (row.planBrief || '').length > 50 ? (row.planBrief || '').substring(0, 50) + '…' : (row.planBrief || '--');
-                var opCell = (row.reductionDetails && row.reductionDetails.length > 0)
-                  ? '<button type="button" class="btn btn-reduction-detail-i" style="padding:6px 12px;font-size:0.85rem;" data-index="' + i + '">详情</button>' : '--';
+                var firstUrl = (row.reductionDetails && row.reductionDetails.length > 0 && row.reductionDetails[0].url)
+                  ? String(row.reductionDetails[0].url).replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+                  : '';
+                var opCell = firstUrl
+                  ? '<a href="' + firstUrl + '" target="_blank" rel="noopener" class="link-detail" style="padding:6px 12px;font-size:0.85rem;">详情</a>' : '--';
                 return '<tr><td>' + (i + 1) + '</td><td>' + (row.stockCode || '--') + '</td><td>' + (row.stockName || '--') + '</td>'
                   + '<td>' + (row.weight != null ? Number(row.weight).toFixed(2) + '%' : '--') + '</td>'
                   + '<td>' + categoryLabel + '</td><td>' + futureStatus + '</td>'
@@ -569,7 +756,7 @@
               }).join('');
             }
 
-            var listC = data.allStocks || [];
+            var listC = filterByWeightTop20(data.allStocks || []);
             var mapA = {};
             listA.forEach(function (r) { mapA[r.stockCode] = r; });
             var allYearN = dataA.allTableYearN != null ? dataA.allTableYearN : yearN;
@@ -617,15 +804,53 @@
             document.getElementById('thAllEps2').textContent = allYearN1 + '年每股收益';
             document.getElementById('thAllEps3').textContent = allYearN2 + '年每股收益';
             var reductionTypeMap = (dataI && dataI.reductionTypeMap) ? dataI.reductionTypeMap : {};
-            if (mergedAll.length === 0) {
-              allBody.innerHTML = '<tr><td colspan="18" class="empty-tip">无数据</td></tr>';
-            } else {
-              allBody.innerHTML = mergedAll.map(function (row, i) { return renderRowAll(i, row, allYearN, allYearN1, allYearN2, useAllTableShifted, reductionTypeMap); }).join('');
-            }
-            bindDetailLinks();
+            loadRpsList(listC, function (rpsMap, list250Gt87) {
+              if (mergedAll.length === 0) {
+                allBody.innerHTML = '<tr><td colspan="19" class="empty-tip">无数据</td></tr>';
+                window._lastMergedAll = [];
+              } else {
+                window._lastMergedAll = mergedAll;
+                allBody.innerHTML = mergedAll.map(function (row, i) {
+                  return renderRowAll(i, row, allYearN, allYearN1, allYearN2, useAllTableShifted, reductionTypeMap, rpsMap);
+                }).join('');
+              }
+              bindDetailLinks();
+              allArea.style.display = 'none';
+              btnToggleAll.textContent = '显示全部持仓（' + mergedAll.length + ' 只）';
 
-            allArea.style.display = 'none';
-            btnToggleAll.textContent = '显示全部持仓（' + mergedAll.length + ' 只）';
+              var codesI = {};
+              (listI || []).forEach(function (r) { codesI[r.stockCode] = true; });
+              var codesR = {};
+              (list250Gt87 || []).forEach(function (r) { codesR[r.stockCode] = true; });
+              var codesC = {};
+              filtered.forEach(function (r) { codesC[r.stockCode] = true; });
+              var codesA = {};
+              matched.forEach(function (r) { codesA[r.stockCode] = true; });
+              var combinedRows = mergedAll.filter(function (row) {
+                var code = row.stockCode;
+                return code && codesR[code] && codesC[code] && codesA[code] && !codesI[code];
+              });
+              var combinedMatchCard = document.getElementById('combinedMatchCard');
+              var combinedMatchBody = document.getElementById('combinedMatchBody');
+              if (combinedMatchCard && combinedMatchBody) {
+                if (combinedRows.length === 0) {
+                  combinedMatchCard.style.display = 'block';
+                  combinedMatchBody.innerHTML = '<tr><td colspan="7" class="empty-tip">暂无同时满足 L、C、A 且不在 I 的股票</td></tr>';
+                } else {
+                  combinedMatchCard.style.display = 'block';
+                  combinedMatchBody.innerHTML = combinedRows.map(function (row, i) {
+                    var code = row.stockCode || '--';
+                    var name = row.stockName || '--';
+                    var weight = formatWeight(row.weight);
+                    var r250 = (rpsMap && rpsMap[code] && rpsMap[code].rps250 != null) ? Number(rpsMap[code].rps250).toFixed(2) + '%' : '--';
+                    var r250Html = (rpsMap && rpsMap[code] && rpsMap[code].rps250 != null && Number(rpsMap[code].rps250) > RPS250_GT) ? '<span class="rps250-gt">' + r250 + '</span>' : r250;
+                    var cYoy = row.cYoy != null ? formatPct(row.cYoy) : '--';
+                    var aTag = row.aMatchType ? matchTag(row.aMatchType) : '--';
+                    return '<tr><td>' + (i + 1) + '</td><td>' + code + '</td><td>' + name + '</td><td>' + weight + '</td><td>' + r250Html + '</td><td>' + cYoy + '</td><td>' + aTag + '</td></tr>';
+                  }).join('');
+                }
+              }
+            });
           })
           .catch(function (err) {
             btnQuery.disabled = false;
@@ -685,14 +910,52 @@
         });
       }
 
+      function escapeHtml(s) {
+        var t = (s == null || s === '') ? '' : String(s);
+        return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      }
       function bindDetailLinks() {
         var area = document.getElementById('resultArea');
         area.removeEventListener('click', onResultAreaClick);
         area.addEventListener('click', onResultAreaClick);
       }
       function onResultAreaClick(e) {
-        if (e.target.classList.contains('link-detail')) {
-          var d = e.target.getAttribute('data-detail');
+        var target = e.target;
+        if (target.classList.contains('link-deduct-detail')) {
+          var idx = target.getAttribute('data-row-index');
+          var list = window._lastMergedAll;
+          var content = '--';
+          var range = '--';
+          var preyear = '--';
+          var notice = '--';
+          if (idx != null && list && list[parseInt(idx, 10)]) {
+            var row = list[parseInt(idx, 10)];
+            var rawContent = row.aDeductContent != null ? row.aDeductContent : (row.deductForecastContent != null ? row.deductForecastContent : null);
+            var rawLower = row.aDeductLower != null ? row.aDeductLower : (row.deductForecastLower != null ? row.deductForecastLower : null);
+            var rawUpper = row.aDeductUpper != null ? row.aDeductUpper : (row.deductForecastUpper != null ? row.deductForecastUpper : null);
+            var rawPreYear = row.aDeductPreYear != null ? row.aDeductPreYear : (row.deductForecastPreYear != null ? row.deductForecastPreYear : null);
+            var rawNotice = row.aDeductNoticeDate != null ? row.aDeductNoticeDate : (row.deductForecastNoticeDate != null ? row.deductForecastNoticeDate : null);
+            content = (rawContent != null && rawContent !== '') ? String(rawContent) : '--';
+            if (rawLower != null || rawUpper != null) {
+              var lo = rawLower != null && !isNaN(Number(rawLower)) ? Number(rawLower).toFixed(2) : '?';
+              var hi = rawUpper != null && !isNaN(Number(rawUpper)) ? Number(rawUpper).toFixed(2) : '?';
+              range = lo + '%～' + hi + '%';
+            }
+            preyear = formatPreYear(rawPreYear);
+            notice = (rawNotice != null && rawNotice !== '') ? String(rawNotice) : '--';
+          }
+          var body = document.getElementById('allDeductDetailModalBody');
+          body.innerHTML = '<table class="detail-table" style="width:100%;border-collapse:collapse;font-size:0.9rem;"><thead><tr><th style="text-align:left;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.12);width:140px;">项目</th><th style="text-align:left;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.12);">值</th></tr></thead><tbody>'
+            + '<tr><td style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.06);color:rgba(255,255,255,0.7);">业绩变动(扣非)</td><td style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.06);word-break:break-word;">' + escapeHtml(content) + '</td></tr>'
+            + '<tr><td style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.06);color:rgba(255,255,255,0.7);">变动幅度(扣非)</td><td style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.06);">' + escapeHtml(range) + '</td></tr>'
+            + '<tr><td style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.06);color:rgba(255,255,255,0.7);">上年同期值(元)</td><td style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.06);">' + escapeHtml(preyear) + '</td></tr>'
+            + '<tr><td style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.06);color:rgba(255,255,255,0.7);">公告日期</td><td style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.06);">' + escapeHtml(notice) + '</td></tr>'
+            + '</tbody></table>';
+          document.getElementById('allDeductDetailModal').classList.add('show');
+          return;
+        }
+        if (target.classList.contains('link-detail')) {
+          var d = target.getAttribute('data-detail');
           if (d != null) {
             document.getElementById('detailModalBody').textContent = d.replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
             document.getElementById('detailModal').classList.add('show');
@@ -703,6 +966,12 @@
         document.getElementById('detailModal').classList.remove('show');
       });
       document.getElementById('detailModal').addEventListener('click', function (e) {
+        if (e.target === this) this.classList.remove('show');
+      });
+      document.getElementById('allDeductDetailModalClose').addEventListener('click', function () {
+        document.getElementById('allDeductDetailModal').classList.remove('show');
+      });
+      document.getElementById('allDeductDetailModal').addEventListener('click', function (e) {
         if (e.target === this) this.classList.remove('show');
       });
     })();

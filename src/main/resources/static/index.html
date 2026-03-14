@@ -136,7 +136,7 @@
       border-color: rgba(20, 184, 166, 0.55);
       background: rgba(20, 184, 166, 0.08);
     }
-    预增(净利润同比)&gt;50%、n-1年增长率&gt;0%、n年营收同比&gt;20%；可展示预告明细。    .card-link.fund-filter {
+    .card-link.fund-filter {
       border-color: rgba(99, 102, 241, 0.35);
       color: #a5b4fc;
     }
@@ -145,10 +145,20 @@
       background: rgba(99, 102, 241, 0.08);
     }
     .card-link .icon {
-      font-size: 1.75rem;
-      margin-bottom: 6px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.5rem;
+      height: 2.5rem;
+      margin-bottom: 8px;
       line-height: 1;
       opacity: 0.95;
+      flex-shrink: 0;
+    }
+    .card-link .icon svg {
+      width: 100%;
+      height: 100%;
+      fill: currentColor;
     }
     .card-link .title {
       display: block;
@@ -179,17 +189,17 @@
       <h2 class="section-title">白银</h2>
       <nav class="nav-links">
         <a class="card-link ratio" href="/ratio-usd.html">
-          <span class="icon">&#x24;</span>
+          <span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="9" cy="12" r="4" opacity="0.9"/><circle cx="15" cy="12" r="4" opacity="0.6"/></svg></span>
           <span class="title">金银比</span>
           <span class="desc">GoldAPI XAU/XAG · 美元/盎司 · 按月考取、图表列表</span>
         </a>
         <a class="card-link silver" href="/silver-inventory.html">
-          <span class="icon">&#x2728;</span>
+          <span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 6h16v2H4V6zm0 4h16v2H4v-2zm0 4h10v2H4v-2z"/><rect x="2" y="4" width="20" height="16" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></span>
           <span class="title">上期所白银库存</span>
           <span class="desc">每日仓单库存 · 查看较前日变动、分仓库详情</span>
         </a>
         <a class="card-link shfe-trade" href="/shfe-trade-daily.html">
-          <span class="icon">&#x1F4C8;</span>
+          <span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 17l5-5 4 4 7-10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
           <span class="title">白银每日交易数据</span>
           <span class="desc">上期所白银(AG) · 成交量 · 持仓量 · 日增仓走势</span>
         </a>
@@ -200,12 +210,12 @@
       <h2 class="section-title">燃油</h2>
       <nav class="nav-links">
         <a class="card-link fuel-inv" href="/silver-inventory.html?product=fu">
-          <span class="icon">&#x26FD;</span>
+          <span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C8 6 6 10 6 14c0 3.3 2.7 6 6 6s6-2.7 6-6c0-4-2-8-6-12z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></span>
           <span class="title">上期所燃油库存</span>
           <span class="desc">每日仓单库存 · 查看较前日变动、分仓库详情</span>
         </a>
         <a class="card-link shfe-fuel" href="/shfe-trade-daily.html?product=fu">
-          <span class="icon">&#x26FD;</span>
+          <span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 17l5-5 4 4 7-10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
           <span class="title">燃油每日交易数据</span>
           <span class="desc">上期所燃料油(FU) · 成交量 · 持仓量 · 日增仓走势</span>
         </a>
@@ -216,7 +226,7 @@
       <h2 class="section-title">美元指数</h2>
       <nav class="nav-links">
         <a class="card-link dxy" href="/dollar-index.html">
-          <span class="icon">&#x24;</span>
+          <span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
           <span class="title">美元指数</span>
           <span class="desc">每日收盘价 · 查看历史列表与图表</span>
         </a>
@@ -227,7 +237,7 @@
       <h2 class="section-title">数据同步</h2>
       <nav class="nav-links">
         <a class="card-link shfe-fetch" href="/shfe-fetch-data.html">
-          <span class="icon">&#x21BB;</span>
+          <span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M23 4v6h-6M1 20v-6h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
           <span class="title">数据同步</span>
           <span class="desc">金银比、库存、交易数据 · 一键同步或按月考取 · 每日 17:30 自动执行</span>
         </a>
@@ -237,13 +247,18 @@
     <section class="section">
       <h2 class="section-title">选股工具</h2>
       <nav class="nav-links">
+        <a class="card-link fund-filter" href="/stock-rps.html">
+          <span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 17l6-6 4 4 8-11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span class="title">RPS 个股相对涨幅强度</span>
+          <span class="desc">输入股票代码 · 查询 RPS60 / RPS125 / RPS250 相对涨幅强度（格隆汇）</span>
+        </a>
         <a class="card-link fund-filter" href="/stock-reduction.html">
-          <span class="icon">&#x1F4C8;</span>
+          <span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M14 2v6h6M9 15h6M9 11h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
           <span class="title">股票代码查询减持信息</span>
           <span class="desc">输入股票代码 · 查询减持类别（预减持/正在减持/已减持）及公告详情</span>
         </a>
         <a class="card-link fund-filter" href="/fund-filter.html">
-          <span class="icon">&#x1F50D;</span>
+          <span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="11" cy="11" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.35-4.35" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
           <span class="title">基金持仓筛选</span>
           <span class="desc">输入基金代码 · C（每股收益同比 &gt; 阈值）与 A（年度每股收益 原版/放宽/业绩预增）、I（减持）一次查询</span>
         </a>

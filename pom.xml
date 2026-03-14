@@ -13,7 +13,7 @@
     </parent>
 
     <groupId>com.goldsilverratio</groupId>
-    <artifactId>goldsilverratio-backend</artifactId>
+    <artifactId>CAN-lite</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>jar</packaging>
     <name>Gold Silver Ratio Backend</name>

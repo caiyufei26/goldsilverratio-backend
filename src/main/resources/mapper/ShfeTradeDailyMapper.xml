@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.goldsilverratio.mapper.ShfeTradeDailyMapper">
+<mapper namespace="com.canLite.mapper.ShfeTradeDailyMapper">
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO shfe_trade_daily (record_date, product_id, product_name, volume, open_interest, oi_change)
@@ -17,7 +17,7 @@
         DELETE FROM shfe_trade_daily WHERE record_date = #{recordDate}
     </delete>
 
-    <select id="selectByMonthAndProduct" resultType="com.goldsilverratio.entity.ShfeTradeDaily">
+    <select id="selectByMonthAndProduct" resultType="com.canLite.entity.ShfeTradeDaily">
         SELECT id, record_date AS recordDate, product_id AS productId, product_name AS productName,
                volume, open_interest AS openInterest, oi_change AS oiChange
         FROM shfe_trade_daily
@@ -26,7 +26,7 @@
         ORDER BY record_date ASC
     </select>
 
-    <select id="selectByMonth" resultType="com.goldsilverratio.entity.ShfeTradeDaily">
+    <select id="selectByMonth" resultType="com.canLite.entity.ShfeTradeDaily">
         SELECT id, record_date AS recordDate, product_id AS productId, product_name AS productName,
                volume, open_interest AS openInterest, oi_change AS oiChange
         FROM shfe_trade_daily
@@ -34,7 +34,7 @@
         ORDER BY record_date ASC, product_id ASC
     </select>
 
-    <select id="selectByDate" resultType="com.goldsilverratio.entity.ShfeTradeDaily">
+    <select id="selectByDate" resultType="com.canLite.entity.ShfeTradeDaily">
         SELECT id, record_date AS recordDate, product_id AS productId, product_name AS productName,
                volume, open_interest AS openInterest, oi_change AS oiChange
         FROM shfe_trade_daily

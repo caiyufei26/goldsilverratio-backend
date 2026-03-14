@@ -9,10 +9,10 @@
         <setting name="lazyLoadingEnabled" value="false" />
     </settings>
     <typeAliases>
-        <package name="com.goldsilverratio.entity" />
+        <package name="com.canLite.entity" />
     </typeAliases>
     <typeHandlers>
-        <typeHandler handler="com.goldsilverratio.config.LocalDateTimeTypeHandler"
+        <typeHandler handler="com.canLite.config.LocalDateTimeTypeHandler"
                     javaType="java.time.LocalDateTime" />
     </typeHandlers>
 </configuration>

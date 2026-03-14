@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.goldsilverratio.mapper.GoldSilverRatioMapper">
+<mapper namespace="com.canLite.mapper.GoldSilverRatioMapper">
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO gold_silver_ratio (gold_price, silver_price, ratio, record_date, record_time)
@@ -12,21 +12,21 @@
         )
     </insert>
 
-    <select id="selectLatest" resultType="com.goldsilverratio.entity.GoldSilverRatio">
+    <select id="selectLatest" resultType="com.canLite.entity.GoldSilverRatio">
         SELECT id, gold_price, silver_price, ratio, record_date AS recordDate, record_time
         FROM gold_silver_ratio
         ORDER BY record_date DESC, record_time DESC
         LIMIT 1
     </select>
 
-    <select id="selectPage" resultType="com.goldsilverratio.entity.GoldSilverRatio">
+    <select id="selectPage" resultType="com.canLite.entity.GoldSilverRatio">
         SELECT id, gold_price, silver_price, ratio, record_date AS recordDate, record_time
         FROM gold_silver_ratio
         ORDER BY record_date DESC, record_time DESC
         LIMIT #{offset}, #{size}
     </select>
 
-    <select id="selectByMonth" resultType="com.goldsilverratio.entity.GoldSilverRatio">
+    <select id="selectByMonth" resultType="com.canLite.entity.GoldSilverRatio">
         SELECT id, gold_price, silver_price, ratio, record_date AS recordDate, record_time
         FROM gold_silver_ratio
         WHERE record_date &gt;= #{start} AND record_date &lt;= #{end}

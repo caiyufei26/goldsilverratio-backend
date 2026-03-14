@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.goldsilverratio.mapper.CftcCotMapper">
+<mapper namespace="com.canLite.mapper.CftcCotMapper">
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO cftc_cot (record_date, commodity_code, total_open_interest, fund_long, fund_short,
@@ -15,7 +15,7 @@
         WHERE record_date = #{recordDate} AND commodity_code = #{commodityCode}
     </delete>
 
-    <select id="selectPage" resultType="com.goldsilverratio.entity.CftcCot">
+    <select id="selectPage" resultType="com.canLite.entity.CftcCot">
         SELECT id, record_date AS recordDate, commodity_code AS commodityCode,
             total_open_interest AS totalOpenInterest, fund_long AS fundLong, fund_short AS fundShort,
             fund_net AS fundNet, commercial_long AS commercialLong, commercial_short AS commercialShort,
@@ -30,7 +30,7 @@
         LIMIT #{offset}, #{size}
     </select>
 
-    <select id="selectByMonth" resultType="com.goldsilverratio.entity.CftcCot">
+    <select id="selectByMonth" resultType="com.canLite.entity.CftcCot">
         SELECT id, record_date AS recordDate, commodity_code AS commodityCode,
             total_open_interest AS totalOpenInterest, fund_long AS fundLong, fund_short AS fundShort,
             fund_net AS fundNet, commercial_long AS commercialLong, commercial_short AS commercialShort,
@@ -41,7 +41,7 @@
         ORDER BY record_date DESC
     </select>
 
-    <select id="selectPrevByDate" resultType="com.goldsilverratio.entity.CftcCot">
+    <select id="selectPrevByDate" resultType="com.canLite.entity.CftcCot">
         SELECT id, record_date AS recordDate, commodity_code AS commodityCode,
             total_open_interest AS totalOpenInterest, fund_long AS fundLong, fund_short AS fundShort,
             fund_net AS fundNet, commercial_long AS commercialLong, commercial_short AS commercialShort,

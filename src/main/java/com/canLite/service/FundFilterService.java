@@ -219,11 +219,9 @@ public class FundFilterService {
         matched.sort((a, b) -> {
             String ma = (String) a.get("matchType");
             String mb = (String) b.get("matchType");
-            if ("原版".equals(ma) && !"原版".equals(mb)) return -1;
-            if ("放宽".equals(ma) && "业绩预增".equals(mb)) return -1;
-            if ("原版".equals(mb) && !"原版".equals(ma)) return 1;
-            if ("放宽".equals(mb) && "业绩预增".equals(ma)) return 1;
-            return 0;
+            int oa = "原版".equals(ma) ? 0 : "高速增长".equals(ma) ? 1 : "放宽".equals(ma) ? 2 : "业绩预增".equals(ma) ? 3 : 4;
+            int ob = "原版".equals(mb) ? 0 : "高速增长".equals(mb) ? 1 : "放宽".equals(mb) ? 2 : "业绩预增".equals(mb) ? 3 : 4;
+            return Integer.compare(oa, ob);
         });
 
         result.put("matched", matched);
@@ -317,6 +315,77 @@ public class FundFilterService {
         result.put("inReductionPlanCount", list.size());
         result.put("list", list);
         result.put("reductionTypeMap", reductionTypeMap);
+        return result;
+    }
+
+    /**
+     * S - 回购：查询基金持仓中发生过回购且今日在回购期间内的股票，独立列表展示。
+     *
+     * @param fundCode 基金代码
+     * @return 包含 fundCode / holdingCount / inRepurchasePeriodCount / list（今日在回购期间内的持仓）、repurchaseTypeMap
+     */
+    public Map<String, Object> queryAndFilterS(String fundCode) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("fundCode", fundCode);
+
+        List<Map<String, Object>> holdings = fetchFundHoldings(fundCode);
+        if (holdings.isEmpty()) {
+            result.put("error", "未找到该基金的持仓数据，请检查基金代码是否正确");
+            return result;
+        }
+        result.put("holdingCount", holdings.size());
+
+        List<String> stockCodes = new ArrayList<>();
+        for (Map<String, Object> h : holdings) {
+            String code = (String) h.get("stockCode");
+            if (isAShareCode(code)) {
+                stockCodes.add(code);
+            }
+        }
+        if (stockCodes.isEmpty()) {
+            result.put("error", "该基金持仓中未找到A股股票");
+            return result;
+        }
+
+        Map<String, Object> repurchaseResult = fetchStocksInRepurchasePlanResult(stockCodes);
+        @SuppressWarnings("unchecked")
+        Map<String, Map<String, Object>> repurchasePlanMap = (Map<String, Map<String, Object>>) repurchaseResult.get("planMap");
+        if (repurchasePlanMap == null) {
+            repurchasePlanMap = new LinkedHashMap<>();
+        }
+
+        List<Map<String, Object>> list = new ArrayList<>();
+        Map<String, String> repurchaseTypeMap = new LinkedHashMap<>();
+        for (Map<String, Object> holding : holdings) {
+            String code = (String) holding.get("stockCode");
+            if (!isAShareCode(code)) {
+                continue;
+            }
+            Map<String, Object> plan = repurchasePlanMap.get(code);
+            if (plan != null && plan.get("repurchaseType") != null) {
+                repurchaseTypeMap.put(code, plan.get("repurchaseType").toString());
+            }
+            if (plan == null || !"CURRENT".equals(plan.get("repurchaseType"))) {
+                continue;
+            }
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("stockCode", code);
+            row.put("stockName", holding.get("stockName"));
+            row.put("weight", holding.get("weight"));
+            row.put("noticeDate", plan.get("noticeDate"));
+            row.put("planStartDate", plan.get("planStartDate"));
+            row.put("planEndDate", plan.get("planEndDate"));
+            row.put("planBrief", plan.get("planBrief"));
+            row.put("repurchaseType", plan.get("repurchaseType"));
+            if (plan.get("repurchaseDetails") != null) {
+                row.put("repurchaseDetails", plan.get("repurchaseDetails"));
+            }
+            list.add(row);
+        }
+
+        result.put("inRepurchasePeriodCount", list.size());
+        result.put("list", list);
+        result.put("repurchaseTypeMap", repurchaseTypeMap);
         return result;
     }
 
@@ -806,6 +875,127 @@ public class FundFilterService {
     }
 
     /**
+     * 从东方财富个股公告接口拉取该股票的回购相关公告（标题或公告分类含「回购」）。
+     *
+     * @param stockCode 股票代码
+     * @return 公告列表，每项含 noticeDate、title、url、artCode
+     */
+    private List<Map<String, Object>> fetchRepurchaseNoticesFromAnn(String stockCode) {
+        List<Map<String, Object>> list = new ArrayList<>();
+        try {
+            String url = ANNOTICE_API_URL
+                    + "?ann_type=A&client_source=web&page_index=1&page_size=50&sr=-1&stock_list="
+                    + stockCode;
+            String json = fetchWithRelaxedSsl(url, "https://data.eastmoney.com/", 20000);
+            JsonNode root = OM.readTree(json);
+            if (root.path("success").asInt(0) != 1) {
+                return list;
+            }
+            JsonNode data = root.path("data");
+            if (data.isMissingNode() || data.isNull()) {
+                return list;
+            }
+            JsonNode arr = data.path("list");
+            if (arr.isMissingNode() || !arr.isArray()) {
+                return list;
+            }
+            for (int i = 0; i < arr.size(); i++) {
+                JsonNode item = arr.get(i);
+                String title = item.path("title_ch").asText("");
+                if (title.isEmpty()) {
+                    title = item.path("title").asText("");
+                }
+                boolean repurchaseByTitle = title != null && title.contains("回购");
+                boolean repurchaseByColumn = false;
+                JsonNode columns = item.path("columns");
+                if (columns.isArray()) {
+                    for (int j = 0; j < columns.size(); j++) {
+                        String cn = columns.get(j).path("column_name").asText("");
+                        if (cn != null && cn.contains("回购")) {
+                            repurchaseByColumn = true;
+                            break;
+                        }
+                    }
+                }
+                if (!repurchaseByTitle && !repurchaseByColumn) {
+                    continue;
+                }
+                String noticeDateStr = item.path("notice_date").asText("");
+                String noticeDate = noticeDateStr != null && noticeDateStr.length() >= 10
+                        ? noticeDateStr.substring(0, 10) : noticeDateStr;
+                String artCode = item.path("art_code").asText("");
+                String link = "https://data.eastmoney.com/notices/detail/" + stockCode + "/" + artCode + ".html";
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("noticeDate", noticeDate);
+                row.put("title", title);
+                row.put("url", link);
+                row.put("artCode", artCode);
+                list.add(row);
+            }
+        } catch (Exception e) {
+            LOG.warn("获取回购相关公告失败 {}: {}", stockCode, e.getMessage());
+        }
+        return list;
+    }
+
+    /**
+     * 拉取基金持仓股票的回购计划及今日是否在回购期间内。使用公告接口，回购期限按惯例为公告日起 12 个月。
+     *
+     * @param stockCodes 待查股票代码
+     * @return Map: "planMap" -> 股票代码 -> { noticeDate, planStartDate, planEndDate, planBrief, repurchaseType }, "sourceAvailable" -> Boolean
+     */
+    private Map<String, Object> fetchStocksInRepurchasePlanResult(List<String> stockCodes) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        Map<String, Map<String, Object>> result = new LinkedHashMap<>();
+        out.put("planMap", result);
+        out.put("sourceAvailable", Boolean.TRUE);
+        if (stockCodes == null || stockCodes.isEmpty()) {
+            return out;
+        }
+        for (String code : stockCodes) {
+            List<Map<String, Object>> details = fetchRepurchaseNoticesFromAnn(code);
+            if (details.isEmpty()) {
+                continue;
+            }
+            Map<String, Object> first = details.get(0);
+            String noticeDateStr = (String) first.get("noticeDate");
+            LocalDate noticeDate = null;
+            if (noticeDateStr != null && noticeDateStr.length() >= 10) {
+                try {
+                    noticeDate = LocalDate.parse(noticeDateStr.substring(0, 10));
+                } catch (Exception ignored) {
+                }
+            }
+            String planStartDate = null;
+            String planEndDate = null;
+            String repurchaseType = null;
+            if (noticeDate != null) {
+                planStartDate = noticeDate.toString();
+                planEndDate = noticeDate.plusMonths(12).toString();
+                LocalDate today = LocalDate.now();
+                LocalDate start = LocalDate.parse(planStartDate);
+                LocalDate end = LocalDate.parse(planEndDate);
+                if (today.isBefore(start)) {
+                    repurchaseType = "FUTURE";
+                } else if (today.isAfter(end)) {
+                    repurchaseType = "PASSED";
+                } else {
+                    repurchaseType = "CURRENT";
+                }
+            }
+            Map<String, Object> plan = new LinkedHashMap<>();
+            plan.put("noticeDate", first.get("noticeDate"));
+            plan.put("planStartDate", planStartDate);
+            plan.put("planEndDate", planEndDate);
+            plan.put("planBrief", first.get("title"));
+            plan.put("repurchaseType", repurchaseType);
+            plan.put("repurchaseDetails", details);
+            result.put(code, plan);
+        }
+        return out;
+    }
+
+    /**
      * 按业绩报表最新季度与去年同期营业收入计算同比（例：2025-09-30 与 2024-09-30），大于20%用于业绩预增判定。
      *
      * @param revenueMap stockCode -> reportDate -> 营业收入(万元)
@@ -843,7 +1033,7 @@ public class FundFilterService {
     }
 
     /**
-     * 按 n、n-1、n-2 规则构建单只股票的 A 行数据并判定 原版/放宽/业绩预增。
+     * 按 n、n-1、n-2 规则构建单只股票的 A 行数据并判定 原版/高速增长/放宽/业绩预增。
      * @param revenueYoyFromReport 该股票按业绩报表最新季度与去年同期营业收入计算的同比(%)，用于业绩预增中「n年营收同比>20%」判定
      */
     private Map<String, Object> buildAnnualRow(String code, Object stockName, Object weight,
@@ -945,6 +1135,10 @@ public class FundFilterService {
         if (hasAnnualN && hasAnnualN1 && hasAnnualN2 && growthN != null && growthN1 != null && growthN2 != null
                 && growthN.doubleValue() > 25 && growthN1.doubleValue() > 25 && growthN2.doubleValue() > 25) {
             matchType = "原版";
+        } else if (hasAnnualN && hasAnnualN1 && hasAnnualN2 && growthN != null && growthN1 != null
+                && growthN.doubleValue() > 80 && growthN1.doubleValue() > 0
+                && revenueYoyFromReport != null && revenueYoyFromReport > 20) {
+            matchType = "高速增长";
         } else if (!hasAnnualN && hasAnnualN1 && hasAnnualN2 && growthN1 != null && growthN2 != null
                 && growthN1.doubleValue() > 25 && growthN2.doubleValue() > 25) {
             matchType = "放宽";

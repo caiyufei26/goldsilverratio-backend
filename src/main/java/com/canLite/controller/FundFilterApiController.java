@@ -98,6 +98,29 @@ public class FundFilterApiController {
     }
 
     /**
+     * S - 回购：基金持仓中发生过回购且今日在回购期间内的股票列表。
+     *
+     * @param code 基金代码
+     * @return 今日在回购期间内的持仓及 repurchaseTypeMap
+     */
+    @GetMapping("/query-s")
+    public Result<Map<String, Object>> queryS(@RequestParam("code") String code) {
+        if (code == null || code.trim().isEmpty()) {
+            return Result.fail(400, "基金代码不能为空");
+        }
+        code = code.trim();
+        try {
+            Map<String, Object> data = fundFilterService.queryAndFilterS(code);
+            if (data.containsKey("error")) {
+                return Result.fail(400, (String) data.get("error"));
+            }
+            return Result.ok(data);
+        } catch (Exception e) {
+            return Result.fail(500, "查询失败：" + e.getMessage());
+        }
+    }
+
+    /**
      * 查询单只股票是否处于大股东减持计划执行期间。
      *
      * @param stock 股票代码，如 300059

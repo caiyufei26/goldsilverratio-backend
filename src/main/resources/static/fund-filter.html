@@ -122,11 +122,32 @@
     .tag-yuan { color: #34d399; font-weight: 600; }
     .tag-fang { color: #fbbf24; font-weight: 600; }
     .tag-yuce { color: #60a5fa; font-weight: 600; }
+    .tag-gaosu { color: #a78bfa; font-weight: 600; }
     .link-detail { color: #60a5fa; margin-left: 6px; cursor: pointer; text-decoration: none; }
     .link-detail:hover { text-decoration: underline; }
     #reductionTable th:last-child,
     #reductionTable td:last-child { text-align: center; width: 5.5rem; min-width: 5.5rem; }
     #reductionTable td:last-child .link-detail { margin-left: 0; }
+    #repurchaseTable th:last-child,
+    #repurchaseTable td:last-child { text-align: center; width: 5.5rem; min-width: 5.5rem; }
+    #repurchaseTable td:last-child .link-detail { margin-left: 0; }
+    .link-repurchase-detail {
+      display: inline-block; padding: 6px 14px; font-size: 0.85rem;
+      background: rgba(56,189,248,0.15); color: #38bdf8;
+      border-radius: 8px; border: 1px solid rgba(56,189,248,0.35);
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .link-repurchase-detail:hover { background: rgba(56,189,248,0.25); border-color: rgba(56,189,248,0.5); text-decoration: none; }
+
+    .card.repurchase-card {
+      background: linear-gradient(135deg, rgba(56,189,248,0.06) 0%, rgba(255,255,255,0.04) 100%);
+      border-color: rgba(56,189,248,0.22);
+    }
+    .card.repurchase-card .section-title-card { text-shadow: 0 0 20px rgba(56,189,248,0.15); }
+    .s-bonus-yes { color: #38bdf8; font-weight: 600; }
+    .summary .item.summary-item-s { border-color: rgba(56,189,248,0.25); background: rgba(56,189,248,0.06); }
+    .summary .item.summary-item-s .value { color: #38bdf8; }
+    .empty-tip-repurchase { color: rgba(56,189,248,0.6); font-size: 0.875rem; }
     .modal-overlay {
       position: fixed; left: 0; top: 0; right: 0; bottom: 0;
       background: rgba(0,0,0,0.7); z-index: 1000; display: none;
@@ -188,7 +209,7 @@
     <header class="page-header">
       <a class="back-link" href="/index.html">&larr; 返回首页</a>
       <h1>基金持仓筛选</h1>
-      <p class="hint">输入基金代码，一次查询同时展示：C（每股收益同比 &gt; 阈值）、A（年度每股收益 原版/放宽/业绩预增）、I（机构认同度 · 大股东减持计划执行期间）满足条件的股票。</p>
+      <p class="hint">输入基金代码，一次查询同时展示：C（每股收益同比 &gt; 阈值）、A（年度每股收益 原版/高速增长/放宽/业绩预增）、S（回购 · 今日在回购期间内）、I（机构认同度 · 大股东减持计划执行期间）满足条件的股票。</p>
     </header>
 
     <div class="card query-card">
@@ -248,7 +269,7 @@
       </div>
 
       <div class="card">
-        <h2 class="section-title-card" style="color:#34d399;">A - 年度每股收益 · 满足条件的股票（原版 / 放宽 / 业绩预增）</h2>
+        <h2 class="section-title-card" style="color:#34d399;">A - 年度每股收益 · 满足条件的股票（原版 / 高速增长 / 放宽 / 业绩预增）</h2>
         <div class="table-wrap">
           <table>
             <thead>
@@ -291,6 +312,29 @@
         </div>
       </div>
 
+      <div class="card repurchase-card" id="repurchaseCard" style="display:none;">
+        <h2 class="section-title-card" style="color:#38bdf8;">S - 回购 · 今日在回购期间内</h2>
+        <p class="hint" style="margin-top:0;margin-bottom:10px;">基金持仓中发生过回购且今日在回购期限内的股票（回购期限按公告日起 12 个月）。点击「详情」可查看公告原链接。</p>
+        <div class="table-wrap">
+          <table id="repurchaseTable">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>股票代码</th>
+                <th>股票名称</th>
+                <th>持仓占比</th>
+                <th>公告日期</th>
+                <th>回购开始日</th>
+                <th>回购截止日</th>
+                <th>计划摘要</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="repurchaseBody"></tbody>
+          </table>
+        </div>
+      </div>
+
       <div class="card" id="reductionCard" style="display:none;">
         <h2 class="section-title-card" style="color:#a78bfa;">I - 机构认同度 · 大股东减持计划执行期间</h2>
         <div class="table-wrap">
@@ -329,6 +373,7 @@
                 <th>C 同比</th>
                 <th>C 满足</th>
                 <th>A 符合</th>
+                <th>S加分</th>
                 <th>I 符合</th>
                 <th>RPS250</th>
                 <th id="thAllYear1">今年增长率</th>
@@ -423,6 +468,11 @@
         rpsListStatus.className = 'status loading';
         rpsListBody.innerHTML = '<tr><td colspan="6" class="empty-tip">加载中</td></tr>';
         var stocks = stockList.map(function (r) { return r.stockCode || r.code; }).filter(Boolean);
+        var nameByCode = {};
+        stockList.forEach(function (r) {
+          var code = r.stockCode || r.code;
+          if (code) nameByCode[code] = r.stockName;
+        });
         fetch('/api/fund-filter/rps-batch', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -449,7 +499,7 @@
                   var r60 = row.rps60 != null ? Number(row.rps60).toFixed(2) + '%' : '--';
                   var r125 = row.rps125 != null ? Number(row.rps125).toFixed(2) + '%' : '--';
                   var r250 = row.rps250 != null ? Number(row.rps250).toFixed(2) + '%' : '--';
-                  return '<tr><td>' + (i + 1) + '</td><td>' + (row.stockCode || '--') + '</td><td>' + (row.stockName || '--') + '</td><td>' + r60 + '</td><td>' + r125 + '</td><td>' + r250 + '</td></tr>';
+                  return '<tr><td>' + (i + 1) + '</td><td>' + (row.stockCode || '--') + '</td><td>' + (row.stockName || nameByCode[row.stockCode] || '--') + '</td><td>' + r60 + '</td><td>' + r125 + '</td><td>' + r250 + '</td></tr>';
                 }).join('');
               }
             } else {
@@ -498,6 +548,7 @@
       function matchTag(matchType) {
         if (!matchType) return '--';
         if (matchType === '原版') return '<span class="tag-yuan">原版</span>';
+        if (matchType === '高速增长') return '<span class="tag-gaosu">高速增长</span>';
         if (matchType === '放宽') return '<span class="tag-fang">放宽</span>';
         if (matchType === '业绩预增') return '<span class="tag-yuce">业绩预增</span>';
         return matchType;
@@ -582,6 +633,7 @@
         var cYoy = merged.cYoy != null ? formatPct(merged.cYoy) : '--';
         var cOk = merged.cMeet ? '<span class="value-highlight">是</span>' : '否';
         var aTag = merged.aMatchType ? matchTag(merged.aMatchType) : '--';
+        var sBonus = merged.sInPeriod ? '<span class="s-bonus-yes">是</span>' : '--';
         var reductionCategoryMap = { 'FUTURE': '预减持', 'CURRENT': '正在减持', 'PASSED': '已减持' };
         var reductionCategoryRaw = (reductionTypeMap && merged.stockCode && reductionTypeMap[merged.stockCode])
           ? (reductionCategoryMap[reductionTypeMap[merged.stockCode]] || '--') : '--';
@@ -624,7 +676,7 @@
         var deductPreYear = formatPreYear(merged.aDeductPreYear);
         var deductNotice = merged.aDeductNoticeDate || '--';
         return '<tr><td>' + (idx + 1) + '</td><td>' + code + '</td><td>' + name + '</td><td>' + weight + '</td>'
-          + '<td>' + cYoy + '</td><td>' + cOk + '</td><td>' + aTag + aDetailBtn + '</td><td>' + reductionCategory + '</td><td>' + rps250Cell + '</td>'
+          + '<td>' + cYoy + '</td><td>' + cOk + '</td><td>' + aTag + aDetailBtn + '</td><td>' + sBonus + '</td><td>' + reductionCategory + '</td><td>' + rps250Cell + '</td>'
           + '<td>' + a1 + '</td><td>' + a2 + '</td><td>' + a3 + '</td>'
           + '<td>' + ae1 + '</td><td>' + ae2 + '</td><td>' + ae3 + '</td>'
           + '<td title="' + (merged.aDeductContent || '').replace(/"/g, '&quot;') + '">' + deductContent + '</td>'
@@ -648,17 +700,20 @@
         var urlC = '/api/fund-filter/query?code=' + encodeURIComponent(code) + '&threshold=' + encodeURIComponent(threshold);
         var urlA = '/api/fund-filter/query-a?code=' + encodeURIComponent(code);
         var urlI = '/api/fund-filter/query-i?code=' + encodeURIComponent(code);
+        var urlS = '/api/fund-filter/query-s?code=' + encodeURIComponent(code);
 
         Promise.all([
           fetch(urlC).then(function (r) { return r.json(); }),
           fetch(urlA).then(function (r) { return r.json(); }),
-          fetch(urlI).then(function (r) { return r.json(); })
+          fetch(urlI).then(function (r) { return r.json(); }),
+          fetch(urlS).then(function (r) { return r.json(); })
         ])
           .then(function (results) {
             btnQuery.disabled = false;
             var resultC = results[0];
             var resultA = results[1];
             var resultI = results[2];
+            var resultS = results[3];
             if (!resultC || resultC.code !== 200) {
               statusMsg.textContent = resultC && resultC.message ? resultC.message : 'C 查询失败';
               statusMsg.className = 'status error';
@@ -673,6 +728,7 @@
             var data = resultC.data;
             var dataA = resultA.data;
             var dataI = (resultI && resultI.code === 200 && resultI.data) ? resultI.data : { list: [], inReductionPlanCount: 0, reductionPlanSourceUnavailable: true };
+            var dataS = (resultS && resultS.code === 200 && resultS.data) ? resultS.data : { list: [], inRepurchasePeriodCount: 0, repurchaseTypeMap: {} };
             statusMsg.textContent = '';
             statusMsg.className = 'status success';
             resultArea.style.display = 'block';
@@ -702,6 +758,7 @@
               + '<div class="item"><div class="label">L 满足</div><div class="value" id="summaryLValue" style="color:#93c5fd;">--</div></div>'
               + '<div class="item"><div class="label">C 满足</div><div class="value" style="color:#fbbf24;">' + filtered.length + ' 只</div></div>'
               + '<div class="item"><div class="label">A 满足</div><div class="value" style="color:#34d399;">' + matched.length + ' 只</div></div>'
+              + '<div class="item summary-item-s"><div class="label">S 回购期间</div><div class="value">' + (dataS.list ? dataS.list.length : 0) + ' 只</div></div>'
               + '<div class="item"><div class="label">I 减持执行期</div><div class="value" style="color:#a78bfa;">' + listI.length + ' 只' + (dataI.reductionPlanSourceUnavailable ? ' <span style="font-size:0.75rem;color:rgba(255,255,255,0.5);">(数据源暂不可用)</span>' : '') + '</div></div>';
 
             if (filtered.length === 0) {
@@ -726,6 +783,31 @@
               matchedBody.innerHTML = '<tr><td colspan="11" class="empty-tip">没有满足 A 条件且有持仓占比的股票</td></tr>';
             } else {
               matchedBody.innerHTML = matched.map(function (row, i) { return renderRowA(i, row, yearN, yearN1, yearN2); }).join('');
+            }
+
+            var repurchaseCard = document.getElementById('repurchaseCard');
+            var repurchaseBody = document.getElementById('repurchaseBody');
+            var listS = (dataS.list || []).filter(function (r) { return top20CodeSet[r.stockCode]; });
+            if (repurchaseCard) repurchaseCard.style.display = 'block';
+            if (repurchaseBody) {
+              if (listS.length === 0) {
+                repurchaseBody.innerHTML = '<tr><td colspan="9" class="empty-tip empty-tip-repurchase">没有今日在回购期间内的持仓（或持仓未发生回购）</td></tr>';
+              } else {
+                window._lastRepurchaseSList = listS;
+                repurchaseBody.innerHTML = listS.map(function (row, i) {
+                  var brief = (row.planBrief || '').length > 50 ? (row.planBrief || '').substring(0, 50) + '…' : (row.planBrief || '--');
+                  var firstUrl = (row.repurchaseDetails && row.repurchaseDetails.length > 0 && row.repurchaseDetails[0].url)
+                    ? String(row.repurchaseDetails[0].url).replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+                    : '';
+                  var opCell = firstUrl
+                    ? '<a href="' + firstUrl + '" target="_blank" rel="noopener" class="link-detail link-repurchase-detail">详情</a>'
+                    : '--';
+                  return '<tr><td>' + (i + 1) + '</td><td>' + (row.stockCode || '--') + '</td><td>' + (row.stockName || '--') + '</td>'
+                    + '<td>' + (row.weight != null ? Number(row.weight).toFixed(2) + '%' : '--') + '</td>'
+                    + '<td>' + (row.noticeDate || '--') + '</td><td>' + (row.planStartDate || '--') + '</td><td>' + (row.planEndDate || '--') + '</td>'
+                    + '<td title="' + (row.planBrief || '').replace(/"/g, '&quot;') + '">' + brief + '</td><td>' + opCell + '</td></tr>';
+                }).join('');
+              }
             }
 
             var reductionCard = document.getElementById('reductionCard');
@@ -794,7 +876,8 @@
                 aDeductPreYear: a.deductForecastPreYear,
                 aDeductNoticeDate: a.deductForecastNoticeDate,
                 aDeductAmpGt50: a.deductForecastAmpGt50,
-                aRevenueYoyFromReport: a.revenueYoyFromReport
+                aRevenueYoyFromReport: a.revenueYoyFromReport,
+                sInPeriod: !!(dataS.repurchaseTypeMap && dataS.repurchaseTypeMap[r.stockCode] === 'CURRENT')
               };
             });
             document.getElementById('thAllYear1').textContent = allYearN + '年增长率';
@@ -806,7 +889,7 @@
             var reductionTypeMap = (dataI && dataI.reductionTypeMap) ? dataI.reductionTypeMap : {};
             loadRpsList(listC, function (rpsMap, list250Gt87) {
               if (mergedAll.length === 0) {
-                allBody.innerHTML = '<tr><td colspan="19" class="empty-tip">无数据</td></tr>';
+                allBody.innerHTML = '<tr><td colspan="20" class="empty-tip">无数据</td></tr>';
                 window._lastMergedAll = [];
               } else {
                 window._lastMergedAll = mergedAll;

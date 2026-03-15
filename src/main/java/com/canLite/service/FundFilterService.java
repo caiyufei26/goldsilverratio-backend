@@ -476,21 +476,22 @@ public class FundFilterService {
         List<double[]> kline = fetchStockKline(secid, 300);
         if (kline != null && kline.size() >= 2) {
             int n = kline.size();
-            double closeLatest = kline.get(n - 1)[1];
+            boolean newestFirst = kline.get(0)[0] > kline.get(n - 1)[0];
+            double closeLatest = newestFirst ? kline.get(0)[1] : kline.get(n - 1)[1];
             if (n > 60) {
-                double close60 = kline.get(n - 1 - 60)[1];
+                double close60 = newestFirst ? kline.get(60)[1] : kline.get(n - 1 - 60)[1];
                 if (close60 > 0) {
                     result.put("return60", (closeLatest - close60) / close60 * 100);
                 }
             }
             if (n > 125) {
-                double close125 = kline.get(n - 1 - 125)[1];
+                double close125 = newestFirst ? kline.get(125)[1] : kline.get(n - 1 - 125)[1];
                 if (close125 > 0) {
                     result.put("return125", (closeLatest - close125) / close125 * 100);
                 }
             }
             if (n > 250) {
-                double close250 = kline.get(n - 1 - 250)[1];
+                double close250 = newestFirst ? kline.get(250)[1] : kline.get(n - 1 - 250)[1];
                 if (close250 > 0) {
                     result.put("return250", (closeLatest - close250) / close250 * 100);
                 }

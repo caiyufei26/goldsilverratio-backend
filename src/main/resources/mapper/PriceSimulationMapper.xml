@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.canLite.mapper.PriceSimulationMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO price_simulation (stock_code, stock_name, purchase_price, stop_loss, take_profit, hist_high, dynamic_take_profit, last_close, daily_take_profit)
+        VALUES (#{stockCode}, #{stockName}, #{purchasePrice}, #{stopLoss}, #{takeProfit}, #{histHigh}, #{dynamicTakeProfit}, #{lastClose}, #{dailyTakeProfit})
+    </insert>
+
+    <select id="selectAll" resultType="com.canLite.entity.PriceSimulation">
+        SELECT id, stock_code AS stockCode, stock_name AS stockName,
+            purchase_price AS purchasePrice, stop_loss AS stopLoss, take_profit AS takeProfit,
+            hist_high AS histHigh, dynamic_take_profit AS dynamicTakeProfit,
+            last_close AS lastClose, daily_take_profit AS dailyTakeProfit, created_at AS createdAt
+        FROM price_simulation
+        ORDER BY id DESC
+    </select>
+
+    <delete id="deleteById">
+        DELETE FROM price_simulation WHERE id = #{id}
+    </delete>
+</mapper>

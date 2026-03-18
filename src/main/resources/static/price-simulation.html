@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>价格模拟</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      min-height: 100vh;
+      background: linear-gradient(160deg, #0f172a 0%, #1e293b 40%, #0f3460 100%);
+      color: #e8e8e8;
+      padding: 24px 16px 56px;
+    }
+    .container { max-width: 720px; margin: 0 auto; }
+    h1 { font-size: 1.5rem; font-weight: 600; color: #fff; margin-bottom: 8px; letter-spacing: 0.02em; }
+    .back-link { display: inline-block; margin-bottom: 16px; color: #93c5fd; text-decoration: none; font-size: 0.85rem; }
+    .back-link:hover { text-decoration: underline; }
+    .hint { font-size: 0.8rem; color: rgba(255,255,255,0.5); margin-bottom: 12px; line-height: 1.5; }
+    .card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+    }
+    .form-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+    .form-row label { font-size: 0.9rem; color: rgba(255,255,255,0.7); white-space: nowrap; }
+    .form-row input {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.18);
+      color: #fff;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.95rem;
+    }
+    .form-row input:focus { outline: none; border-color: rgba(147,197,253,0.6); }
+    .form-row input::placeholder { color: rgba(255,255,255,0.3); }
+    .btn {
+      background: linear-gradient(135deg, #6366f1, #818cf8);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 22px;
+      font-size: 0.92rem;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn:hover { opacity: 0.9; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-danger { background: linear-gradient(135deg, #dc2626, #ef4444); }
+    .btn-danger:hover { opacity: 0.9; }
+    .status { font-size: 0.85rem; margin-top: 12px; min-height: 1.2em; }
+    .status.loading { color: #fbbf24; }
+    .status.error { color: #f87171; }
+    .status.success { color: #34d399; }
+    .result-card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 20px;
+      margin-top: 16px;
+    }
+    .result-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 0.9rem; }
+    .result-row:last-child { border-bottom: none; }
+    .result-row .label { color: rgba(255,255,255,0.6); }
+    .result-row .value { color: #fff; font-weight: 500; }
+    .section-title { font-size: 0.95rem; color: #93c5fd; margin-bottom: 12px; padding-left: 10px; border-left: 3px solid #93c5fd; }
+    .table-wrap { overflow-x: auto; margin-top: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    th { color: rgba(255,255,255,0.5); font-weight: 500; }
+    tr:hover td { background: rgba(255,255,255,0.03); }
+    .empty-tip { text-align: center; padding: 32px; color: rgba(255,255,255,0.4); font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a class="back-link" href="/index.html">&larr; 返回首页</a>
+    <h1>价格模拟</h1>
+    <p class="hint">输入股票代码和购买价格，计算止损(购买价×0.92)、止盈(购买价×1.22)、动态止盈(历史最高×0.95)、日止盈价(昨日收盘价×1.08)。计算后自动保存，可在此页删除记录。</p>
+
+    <div class="card">
+      <div class="form-row">
+        <label>股票代码</label>
+        <input type="text" id="stockCode" placeholder="如 002028、600519" style="width:160px;" />
+        <label>购买价格</label>
+        <input type="number" id="purchasePrice" placeholder="如 10.50" step="0.01" min="0.0001" style="width:120px;" />
+        <button class="btn" id="btnCalc">计算并保存</button>
+      </div>
+      <div class="status" id="statusMsg"></div>
+      <div id="resultArea" class="result-card" style="display:none;">
+        <div class="result-row"><span class="label">止损</span><span class="value" id="outStopLoss">--</span></div>
+        <div class="result-row"><span class="label">止盈</span><span class="value" id="outTakeProfit">--</span></div>
+        <div class="result-row"><span class="label">历史最高价</span><span class="value" id="outHistHigh">--</span></div>
+        <div class="result-row"><span class="label">动态止盈</span><span class="value" id="outDynamicTakeProfit">--</span></div>
+        <div class="result-row"><span class="label">昨日收盘价</span><span class="value" id="outLastClose">--</span></div>
+        <div class="result-row"><span class="label">日止盈价</span><span class="value" id="outDailyTakeProfit">--</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 class="section-title">已保存记录</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>股票</th>
+              <th>购买价</th>
+              <th>止损</th>
+              <th>止盈</th>
+              <th>历史最高</th>
+              <th>动态止盈</th>
+              <th>昨日收盘</th>
+              <th>日止盈价</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="listBody"></tbody>
+        </table>
+      </div>
+      <p id="listEmpty" class="empty-tip" style="display:none;">暂无记录，请先计算并保存。</p>
+    </div>
+  </div>
+  <script>
+    (function () {
+      var stockCodeInput = document.getElementById('stockCode');
+      var purchasePriceInput = document.getElementById('purchasePrice');
+      var btnCalc = document.getElementById('btnCalc');
+      var statusMsg = document.getElementById('statusMsg');
+      var resultArea = document.getElementById('resultArea');
+      var listBody = document.getElementById('listBody');
+      var listEmpty = document.getElementById('listEmpty');
+
+      function fmtPrice(v) {
+        if (v == null) return '--';
+        var n = Number(v);
+        if (isNaN(n)) return '--';
+        return n.toFixed(2);
+      }
+
+      function loadList() {
+        fetch('/api/price-simulation/list')
+          .then(function (r) { return r.json(); })
+          .then(function (res) {
+            if (!res || res.code !== 200 || !res.data) {
+              listBody.innerHTML = '';
+              listEmpty.style.display = 'block';
+              return;
+            }
+            var rows = res.data;
+            if (rows.length === 0) {
+              listBody.innerHTML = '';
+              listEmpty.style.display = 'block';
+              return;
+            }
+            listEmpty.style.display = 'none';
+            listBody.innerHTML = rows.map(function (row) {
+              var name = (row.stockName || row.stockCode || '--') + ' (' + (row.stockCode || '') + ')';
+              return '<tr><td>' + name + '</td><td>' + fmtPrice(row.purchasePrice) + '</td><td>' + fmtPrice(row.stopLoss) + '</td><td>' + fmtPrice(row.takeProfit) + '</td><td>' + fmtPrice(row.histHigh) + '</td><td>' + fmtPrice(row.dynamicTakeProfit) + '</td><td>' + fmtPrice(row.lastClose) + '</td><td>' + fmtPrice(row.dailyTakeProfit) + '</td><td><button type="button" class="btn btn-danger" data-id="' + row.id + '">删除</button></td></tr>';
+            }).join('');
+            listBody.querySelectorAll('button[data-id]').forEach(function (btn) {
+              btn.addEventListener('click', function () {
+                var id = btn.getAttribute('data-id');
+                if (!id) return;
+                if (!confirm('确定删除该记录？')) return;
+                fetch('/api/price-simulation/' + id, { method: 'DELETE' })
+                  .then(function (r) { return r.json(); })
+                  .then(function (res) {
+                    if (res && res.code === 200) loadList();
+                    else alert(res && res.message ? res.message : '删除失败');
+                  })
+                  .catch(function () { alert('请求失败'); });
+              });
+            });
+          })
+          .catch(function () {
+            listBody.innerHTML = '';
+            listEmpty.style.display = 'block';
+          });
+      }
+
+      btnCalc.addEventListener('click', function () {
+        var code = (stockCodeInput.value || '').trim();
+        var priceVal = (purchasePriceInput.value || '').trim();
+        if (!code) {
+          statusMsg.textContent = '请输入股票代码';
+          statusMsg.className = 'status error';
+          return;
+        }
+        var price = parseFloat(priceVal);
+        if (isNaN(price) || price <= 0) {
+          statusMsg.textContent = '请输入有效的购买价格';
+          statusMsg.className = 'status error';
+          return;
+        }
+        statusMsg.textContent = '计算中…';
+        statusMsg.className = 'status loading';
+        resultArea.style.display = 'none';
+        btnCalc.disabled = true;
+
+        fetch('/api/price-simulation/calculate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ stockCode: code, purchasePrice: price })
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (res) {
+            btnCalc.disabled = false;
+            if (!res || res.code !== 200) {
+              statusMsg.textContent = (res && res.message) ? res.message : '计算失败';
+              statusMsg.className = 'status error';
+              return;
+            }
+            var d = res.data;
+            statusMsg.textContent = '已保存';
+            statusMsg.className = 'status success';
+            document.getElementById('outStopLoss').textContent = fmtPrice(d.stopLoss);
+            document.getElementById('outTakeProfit').textContent = fmtPrice(d.takeProfit);
+            document.getElementById('outHistHigh').textContent = fmtPrice(d.histHigh);
+            document.getElementById('outDynamicTakeProfit').textContent = fmtPrice(d.dynamicTakeProfit);
+            document.getElementById('outLastClose').textContent = fmtPrice(d.lastClose);
+            document.getElementById('outDailyTakeProfit').textContent = fmtPrice(d.dailyTakeProfit);
+            resultArea.style.display = 'block';
+            loadList();
+          })
+          .catch(function (err) {
+            btnCalc.disabled = false;
+            statusMsg.textContent = '请求失败：' + (err && err.message ? err.message : '网络错误');
+            statusMsg.className = 'status error';
+          });
+      });
+
+      stockCodeInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') btnCalc.click();
+      });
+      purchasePriceInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') btnCalc.click();
+      });
+
+      loadList();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>股票代码查询减持信息</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      min-height: 100vh;
+      background: linear-gradient(160deg, #0f172a 0%, #1e293b 40%, #0f3460 100%);
+      color: #e8e8e8;
+      padding: 24px 16px 56px;
+    }
+    .container { max-width: 720px; margin: 0 auto; }
+    h1 {
+      font-size: 1.5rem; font-weight: 600; color: #fff;
+      margin-bottom: 8px; letter-spacing: 0.02em;
+    }
+    .back-link {
+      display: inline-block; margin-bottom: 16px; color: #a78bfa;
+      text-decoration: none; font-size: 0.85rem;
+    }
+    .back-link:hover { text-decoration: underline; }
+    .hint { font-size: 0.8rem; color: rgba(255,255,255,0.5); margin-bottom: 12px; line-height: 1.5; }
+    .card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px; padding: 24px; margin-bottom: 20px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+    }
+    .form-row {
+      display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .form-row label { font-size: 0.9rem; color: rgba(255,255,255,0.7); white-space: nowrap; }
+    .form-row input {
+      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18);
+      color: #fff; border-radius: 8px; padding: 10px 14px; font-size: 0.95rem;
+    }
+    .form-row input:focus { outline: none; border-color: rgba(167,139,250,0.6); }
+    .form-row input::placeholder { color: rgba(255,255,255,0.3); }
+    .btn {
+      background: linear-gradient(135deg, #7c3aed, #8b5cf6);
+      color: #fff; border: none; border-radius: 8px; padding: 10px 22px;
+      font-size: 0.92rem; cursor: pointer; transition: opacity 0.2s;
+    }
+    .btn:hover { opacity: 0.9; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .status { font-size: 0.85rem; margin-top: 12px; min-height: 1.2em; }
+    .status.loading { color: #fbbf24; }
+    .status.error { color: #f87171; }
+    .status.success { color: #34d399; }
+    #resultArea { display: none; margin-top: 16px; }
+    .result-card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px; padding: 20px;
+    }
+    .result-card h2 { font-size: 1rem; color: #a78bfa; margin-bottom: 14px; padding-left: 10px; border-left: 3px solid #a78bfa; }
+    .result-row { padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 0.9rem; }
+    .result-row:last-child { border-bottom: none; }
+    .result-row .label { color: rgba(255,255,255,0.6); margin-right: 8px; }
+    .tag-current { color: #f87171; font-weight: 600; }
+    .tag-future { color: #fbbf24; font-weight: 600; }
+    .tag-passed { color: #94a3b8; font-weight: 500; }
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 12px; }
+    .detail-table th, .detail-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .detail-table th { color: rgba(255,255,255,0.5); font-weight: 500; }
+    .detail-table a { color: #a78bfa; text-decoration: none; }
+    .detail-table a:hover { text-decoration: underline; }
+    .empty-tip { text-align: center; padding: 24px; color: rgba(255,255,255,0.45); font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a class="back-link" href="/index.html">&larr; 返回首页</a>
+    <h1>股票代码查询减持信息</h1>
+    <p class="hint">输入股票代码，查询减持类别（预减持/正在减持/已减持）及公告详情。</p>
+
+    <div class="card">
+      <div class="form-row">
+        <label>股票代码</label>
+        <input type="text" id="stockCode" placeholder="如 300059" style="width:180px;" />
+        <button class="btn" id="btnQuery">查询</button>
+      </div>
+      <div class="status" id="statusMsg"></div>
+      <div id="resultArea">
+        <div class="result-card">
+          <h2 id="resultTitle">查询结果</h2>
+          <div id="resultBody"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      var stockCodeInput = document.getElementById('stockCode');
+      var btnQuery = document.getElementById('btnQuery');
+      var statusMsg = document.getElementById('statusMsg');
+      var resultArea = document.getElementById('resultArea');
+      var resultTitle = document.getElementById('resultTitle');
+      var resultBody = document.getElementById('resultBody');
+
+      var typeMap = { 'CURRENT': '正在减持', 'FUTURE': '预减持', 'PASSED': '已减持' };
+      var typeClass = { 'CURRENT': 'tag-current', 'FUTURE': 'tag-future', 'PASSED': 'tag-passed' };
+
+      btnQuery.addEventListener('click', function () {
+        var code = (stockCodeInput.value || '').trim();
+        if (!code) {
+          statusMsg.textContent = '请输入股票代码';
+          statusMsg.className = 'status error';
+          resultArea.style.display = 'none';
+          return;
+        }
+        statusMsg.textContent = '查询中…';
+        statusMsg.className = 'status loading';
+        resultArea.style.display = 'none';
+        btnQuery.disabled = true;
+
+        fetch('/api/fund-filter/check-reduction?stock=' + encodeURIComponent(code))
+          .then(function (r) { return r.json(); })
+          .then(function (res) {
+            btnQuery.disabled = false;
+            if (!res || res.code !== 200) {
+              statusMsg.textContent = (res && res.message) ? res.message : '查询失败';
+              statusMsg.className = 'status error';
+              return;
+            }
+            var d = res.data;
+            if (d && d.error) {
+              statusMsg.textContent = d.error;
+              statusMsg.className = 'status error';
+              return;
+            }
+            statusMsg.textContent = '';
+            statusMsg.className = 'status success';
+            resultTitle.textContent = '股票 ' + (d.stockCode || code);
+            var html = '';
+            if (d.reductionPlanSourceUnavailable) {
+              html = '<p class="empty-tip">减持计划数据源暂不可用，无法展示详情。</p>';
+            } else if (!d.inReductionPlan) {
+              html = '<p class="result-row">该股票当前<strong>未在</strong>大股东减持计划执行期间内。</p>';
+            } else {
+              var typeLabel = typeMap[d.reductionType] || d.reductionType || '--';
+              var typeCls = typeClass[d.reductionType] || '';
+              html += '<div class="result-row"><span class="label">减持类别</span><span class="' + typeCls + '">' + typeLabel + '</span></div>';
+              html += '<div class="result-row"><span class="label">未来是否将减持</span><span>' + (d.futureReduction ? '是' : '否') + '</span></div>';
+              if (d.noticeDate) html += '<div class="result-row"><span class="label">公告日期</span><span>' + d.noticeDate + '</span></div>';
+              if (d.planStartDate) html += '<div class="result-row"><span class="label">计划开始日</span><span>' + d.planStartDate + '</span></div>';
+              if (d.planEndDate) html += '<div class="result-row"><span class="label">计划截止日</span><span>' + d.planEndDate + '</span></div>';
+              if (d.planBrief) html += '<div class="result-row"><span class="label">计划摘要</span><span>' + (d.planBrief.length > 80 ? d.planBrief.substring(0, 80) + '…' : d.planBrief) + '</span></div>';
+              var details = d.reductionDetails;
+              if (details && details.length > 0) {
+                html += '<div class="result-row" style="border-bottom:none;padding-top:16px;"><span class="label">公告列表</span></div>';
+                html += '<table class="detail-table"><thead><tr><th>公告日期</th><th>公告标题</th><th>链接</th></tr></thead><tbody>';
+                for (var i = 0; i < details.length; i++) {
+                  var it = details[i];
+                  var title = (it.title || '--').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                  var shortTitle = title.length > 40 ? title.substring(0, 40) + '…' : title;
+                  var url = it.url || '#';
+                  html += '<tr><td>' + (it.noticeDate || '--') + '</td><td title="' + title + '">' + shortTitle + '</td><td><a href="' + url + '" target="_blank" rel="noopener">查看</a></td></tr>';
+                }
+                html += '</tbody></table>';
+              }
+            }
+            resultBody.innerHTML = html;
+            resultArea.style.display = 'block';
+          })
+          .catch(function (err) {
+            btnQuery.disabled = false;
+            statusMsg.textContent = '请求失败：' + (err && err.message ? err.message : '网络错误');
+            statusMsg.className = 'status error';
+          });
+      });
+      stockCodeInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') btnQuery.click();
+      });
+    })();
+  </script>
+</body>
+</html>

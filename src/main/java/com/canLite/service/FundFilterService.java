@@ -507,6 +507,54 @@ public class FundFilterService {
         return result;
     }
 
+    /**
+     * 获取股票历史最高价（前复权 K 线近 300 日收盘价最大值）。用于价格模拟动态止盈。
+     *
+     * @param stockCode 股票代码，如 002028
+     * @return 历史最高价，无法获取时返回 null
+     */
+    public BigDecimal getStockHistHigh(String stockCode) {
+        if (stockCode == null || stockCode.trim().isEmpty() || !isAShareCode(stockCode.trim())) {
+            return null;
+        }
+        String codeSix = normalizeStockCode(stockCode.trim());
+        String secid = toSecid(codeSix);
+        List<double[]> kline = fetchStockKline(secid, 300);
+        if (kline == null || kline.isEmpty()) {
+            return null;
+        }
+        double maxClose = kline.get(0)[1];
+        for (int i = 1; i < kline.size(); i++) {
+            double close = kline.get(i)[1];
+            if (close > maxClose) {
+                maxClose = close;
+            }
+        }
+        return BigDecimal.valueOf(maxClose).setScale(4, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * 获取股票昨日（最近一交易日）收盘价。前复权 K 线最新一根的收盘价。
+     *
+     * @param stockCode 股票代码，如 002028
+     * @return 昨日收盘价，无法获取时返回 null
+     */
+    public BigDecimal getStockLastClose(String stockCode) {
+        if (stockCode == null || stockCode.trim().isEmpty() || !isAShareCode(stockCode.trim())) {
+            return null;
+        }
+        String codeSix = normalizeStockCode(stockCode.trim());
+        String secid = toSecid(codeSix);
+        List<double[]> kline = fetchStockKline(secid, 10);
+        if (kline == null || kline.isEmpty()) {
+            return null;
+        }
+        int n = kline.size();
+        boolean newestFirst = kline.get(0)[0] > kline.get(n - 1)[0];
+        double close = newestFirst ? kline.get(0)[1] : kline.get(n - 1)[1];
+        return BigDecimal.valueOf(close).setScale(4, RoundingMode.HALF_UP);
+    }
+
     /** 批量 RPS 最多返回只数，避免单次请求过久。 */
     private static final int RPS_BATCH_MAX = 20;
 

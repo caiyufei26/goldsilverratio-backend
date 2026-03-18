@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RPS 个股相对涨幅强度</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      min-height: 100vh;
+      background: linear-gradient(160deg, #0f172a 0%, #1e293b 40%, #0f3460 100%);
+      color: #e8e8e8;
+      padding: 24px 16px 56px;
+    }
+    .container { max-width: 640px; margin: 0 auto; }
+    h1 {
+      font-size: 1.5rem; font-weight: 600; color: #fff;
+      margin-bottom: 8px; letter-spacing: 0.02em;
+    }
+    .back-link {
+      display: inline-block; margin-bottom: 16px; color: #93c5fd;
+      text-decoration: none; font-size: 0.85rem;
+    }
+    .back-link:hover { text-decoration: underline; }
+    .hint { font-size: 0.8rem; color: rgba(255,255,255,0.5); margin-bottom: 12px; line-height: 1.5; }
+    .card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px; padding: 24px; margin-bottom: 20px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+    }
+    .form-row {
+      display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .form-row label { font-size: 0.9rem; color: rgba(255,255,255,0.7); white-space: nowrap; }
+    .form-row input {
+      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18);
+      color: #fff; border-radius: 8px; padding: 10px 14px; font-size: 0.95rem;
+    }
+    .form-row input:focus { outline: none; border-color: rgba(147,197,253,0.6); }
+    .form-row input::placeholder { color: rgba(255,255,255,0.3); }
+    .btn {
+      background: linear-gradient(135deg, #6366f1, #818cf8);
+      color: #fff; border: none; border-radius: 8px; padding: 10px 22px;
+      font-size: 0.92rem; cursor: pointer; transition: opacity 0.2s;
+    }
+    .btn:hover { opacity: 0.9; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .status { font-size: 0.85rem; margin-top: 12px; min-height: 1.2em; }
+    .status.loading { color: #fbbf24; }
+    .status.error { color: #f87171; }
+    .status.success { color: #34d399; }
+    #resultArea { display: none; margin-top: 16px; }
+    .result-card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px; padding: 20px;
+    }
+    .result-card h2 { font-size: 1rem; color: #93c5fd; margin-bottom: 14px; padding-left: 10px; border-left: 3px solid #93c5fd; }
+    .result-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 0.9rem; }
+    .result-row:last-child { border-bottom: none; }
+    .result-row .label { color: rgba(255,255,255,0.6); }
+    .result-row .value { color: #fff; font-weight: 500; }
+    .result-row .value.high { color: #34d399; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a class="back-link" href="/index.html">&larr; 返回首页</a>
+    <h1>RPS 个股相对涨幅强度</h1>
+    <p class="hint">输入股票代码，查询 RPS60 / RPS125 / RPS250 相对涨幅强度（格隆汇）。</p>
+
+    <div class="card">
+      <div class="form-row">
+        <label>股票代码</label>
+        <input type="text" id="stockCode" placeholder="如 002028、600519" style="width:180px;" />
+        <button class="btn" id="btnQuery">查询</button>
+      </div>
+      <div class="status" id="statusMsg"></div>
+      <div id="resultArea">
+        <div class="result-card">
+          <h2 id="resultTitle">查询结果</h2>
+          <div id="resultBody"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      var stockCodeInput = document.getElementById('stockCode');
+      var btnQuery = document.getElementById('btnQuery');
+      var statusMsg = document.getElementById('statusMsg');
+      var resultArea = document.getElementById('resultArea');
+      var resultTitle = document.getElementById('resultTitle');
+      var resultBody = document.getElementById('resultBody');
+
+      function fmt(v) {
+        if (v == null || (typeof v === 'number' && isNaN(v))) return '--';
+        var n = Number(v);
+        if (isNaN(n)) return '--';
+        return n.toFixed(2) + '%';
+      }
+
+      btnQuery.addEventListener('click', function () {
+        var code = (stockCodeInput.value || '').trim();
+        if (!code) {
+          statusMsg.textContent = '请输入股票代码';
+          statusMsg.className = 'status error';
+          resultArea.style.display = 'none';
+          return;
+        }
+        statusMsg.textContent = '查询中…';
+        statusMsg.className = 'status loading';
+        resultArea.style.display = 'none';
+        btnQuery.disabled = true;
+
+        fetch('/api/fund-filter/rps?stock=' + encodeURIComponent(code))
+          .then(function (r) { return r.json(); })
+          .then(function (res) {
+            btnQuery.disabled = false;
+            if (!res || res.code !== 200) {
+              statusMsg.textContent = (res && res.message) ? res.message : '查询失败';
+              statusMsg.className = 'status error';
+              return;
+            }
+            var d = res.data;
+            if (d && d.error) {
+              statusMsg.textContent = d.error;
+              statusMsg.className = 'status error';
+              return;
+            }
+            statusMsg.textContent = '';
+            statusMsg.className = 'status success';
+            resultTitle.textContent = (d.stockName || d.stockCode || code) + ' (' + (d.stockCode || code) + ')';
+            resultBody.innerHTML =
+              '<div class="result-row"><span class="label">RPS60</span><span class="value ' + (d.rps60 != null && d.rps60 > 87 ? 'high' : '') + '">' + fmt(d.rps60) + '</span></div>'
+              + '<div class="result-row"><span class="label">RPS125</span><span class="value ' + (d.rps125 != null && d.rps125 > 87 ? 'high' : '') + '">' + fmt(d.rps125) + '</span></div>'
+              + '<div class="result-row"><span class="label">RPS250</span><span class="value ' + (d.rps250 != null && d.rps250 > 87 ? 'high' : '') + '">' + fmt(d.rps250) + '</span></div>';
+            resultArea.style.display = 'block';
+          })
+          .catch(function (err) {
+            btnQuery.disabled = false;
+            statusMsg.textContent = '请求失败：' + (err && err.message ? err.message : '网络错误');
+            statusMsg.className = 'status error';
+          });
+      });
+      stockCodeInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') btnQuery.click();
+      });
+    })();
+  </script>
+</body>
+</html>

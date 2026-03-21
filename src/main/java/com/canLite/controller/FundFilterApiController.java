@@ -75,10 +75,10 @@ public class FundFilterApiController {
     }
 
     /**
-     * I - 机构认同度：基金持仓中正处于大股东减持计划执行期间的股票列表。
+     * I - 机构认同度：基金持仓中处于减持执行期（CURRENT）或未来将减持（FUTURE）的股票列表。
      *
      * @param code 基金代码
-     * @return 处于减持计划执行期的持仓及计划摘要
+     * @return CURRENT 与 FUTURE 持仓及计划摘要
      */
     @GetMapping("/query-i")
     public Result<Map<String, Object>> queryI(@RequestParam("code") String code) {
@@ -121,10 +121,10 @@ public class FundFilterApiController {
     }
 
     /**
-     * 查询单只股票是否处于大股东减持计划执行期间。
+     * 查询单只股票减持状态：inReductionPlan 在 CURRENT 或 FUTURE 时为 true。
      *
      * @param stock 股票代码，如 300059
-     * @return inReductionPlan 及计划摘要（若有）
+     * @return inReductionPlan、reductionType、计划摘要（若有）
      */
     @GetMapping("/check-reduction")
     public Result<Map<String, Object>> checkReduction(@RequestParam("stock") String stock) {

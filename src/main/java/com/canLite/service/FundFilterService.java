@@ -243,10 +243,10 @@ public class FundFilterService {
     }
 
     /**
-     * I - 机构认同度：查询基金持仓中正处于大股东减持计划执行期间的股票，独立列表展示。
+     * I - 机构认同度：查询基金持仓中处于减持执行期（CURRENT）或未来将减持（FUTURE）的股票，独立列表展示。
      *
      * @param fundCode 基金代码
-     * @return 包含 fundCode / holdingCount / inReductionPlanCount / list（处于减持计划执行期的持仓及计划摘要）
+     * @return 包含 fundCode / holdingCount / inReductionPlanCount / list（CURRENT 与 FUTURE 持仓及计划摘要）
      */
     public Map<String, Object> queryAndFilterI(String fundCode) {
         Map<String, Object> result = new LinkedHashMap<>();
@@ -281,7 +281,7 @@ public class FundFilterService {
             result.put("reductionPlanSourceUnavailable", true);
         }
 
-        /* 仅保留正在减持（reductionType=CURRENT）的持仓，与“股票代码查询减持信息”同结构，含 reductionDetails 供详情 */
+        /* 保留 reductionType 为 CURRENT 或 FUTURE；PASSED 不计入 */
         List<Map<String, Object>> list = new ArrayList<>();
         Map<String, String> reductionTypeMap = new LinkedHashMap<>();
         for (Map<String, Object> holding : holdings) {
@@ -290,10 +290,11 @@ public class FundFilterService {
                 continue;
             }
             Map<String, Object> plan = reductionPlanMap.get(code);
-            if (plan != null && plan.get("reductionType") != null) {
+            Object rt = plan != null ? plan.get("reductionType") : null;
+            if (plan != null && ("CURRENT".equals(rt) || "FUTURE".equals(rt))) {
                 reductionTypeMap.put(code, plan.get("reductionType").toString());
             }
-            if (plan == null || !"CURRENT".equals(plan.get("reductionType"))) {
+            if (plan == null || (!"CURRENT".equals(rt) && !"FUTURE".equals(rt))) {
                 continue;
             }
             Map<String, Object> row = new LinkedHashMap<>();
@@ -393,7 +394,7 @@ public class FundFilterService {
      * 查询单只股票减持相关状态：今日是否在减持执行期、未来是否将减持及类型。
      *
      * @param stockCode 股票代码，如 300059
-     * @return inReductionPlan、reductionType(当前在减持执行期/未来将减持/已过减持期)、futureReduction、noticeDate 等
+     * @return inReductionPlan（CURRENT 或 FUTURE 时为 true）、reductionType、futureReduction、noticeDate 等
      */
     public Map<String, Object> checkStockReduction(String stockCode) {
         Map<String, Object> result = new LinkedHashMap<>();
@@ -418,7 +419,9 @@ public class FundFilterService {
         Map<String, Map<String, Object>> planMap = (Map<String, Map<String, Object>>) reductionResult.get("planMap");
         Map<String, Object> plan = (planMap != null) ? planMap.get(stockCode) : null;
         if (plan != null) {
-            result.put("inReductionPlan", true);
+            Object rt = plan.get("reductionType");
+            boolean inPlan = "CURRENT".equals(rt) || "FUTURE".equals(rt);
+            result.put("inReductionPlan", inPlan);
             result.put("noticeDate", plan.get("noticeDate"));
             result.put("planStartDate", plan.get("planStartDate"));
             result.put("planEndDate", plan.get("planEndDate"));
@@ -717,6 +720,63 @@ public class FundFilterService {
     }
 
     /**
+     * 公告标题或报表 PLAN_BRIEF 是否表示减持计划已实施完毕/终止，不作为「正在/未来减持」依据。
+     */
+    private boolean isReductionPlanFinishedNoticeTitle(String titleOrBrief) {
+        if (titleOrBrief == null || titleOrBrief.isEmpty()) {
+            return false;
+        }
+        String t = titleOrBrief;
+        if (t.contains("实施完毕") || t.contains("实施完成")) {
+            return true;
+        }
+        if (t.contains("减持完毕") || t.contains("减持完成")) {
+            return true;
+        }
+        if (t.contains("完成减持")) {
+            return true;
+        }
+        if (t.contains("减持计划实施完毕") || t.contains("减持计划已完成")) {
+            return true;
+        }
+        if (t.contains("提前终止") || t.contains("终止减持") || t.contains("减持计划终止")) {
+            return true;
+        }
+        if (t.contains("期限届满")) {
+            return true;
+        }
+        if (t.contains("减持结束")) {
+            return true;
+        }
+        if (t.contains("减持") && t.contains("已结束")) {
+            return true;
+        }
+        if (t.contains("未减持") && t.contains("完毕")) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 公告列表仅保留非「减持完毕」类，用于展示与统计。
+     */
+    private List<Map<String, Object>> filterReductionDetailsExcludingFinished(
+            List<Map<String, Object>> details) {
+        if (details == null || details.isEmpty()) {
+            return new ArrayList<>();
+        }
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Map<String, Object> row : details) {
+            Object tit = row.get("title");
+            String title = tit != null ? String.valueOf(tit) : "";
+            if (!isReductionPlanFinishedNoticeTitle(title)) {
+                out.add(row);
+            }
+        }
+        return out;
+    }
+
+    /**
      * 拉取正处于大股东减持计划执行期内的股票列表及计划摘要。
      * 当东方财富返回 success=false（如报表配置不存在 9501）时，返回空列表并标记 sourceAvailable=false。
      *
@@ -770,34 +830,54 @@ public class FundFilterService {
                 }
 
                 LocalDate today = LocalDate.now();
+                Map<String, List<JsonNode>> byCode = new LinkedHashMap<>();
                 for (int i = 0; i < dataArr.size(); i++) {
                     JsonNode item = dataArr.get(i);
                     String code = item.path("SECURITY_CODE").asText("");
                     if (code.isEmpty()) {
                         continue;
                     }
-                    String endStr = item.path("PLAN_END_DATE").asText(null);
-                    if (endStr == null || endStr.length() < 10) {
-                        continue;
+                    byCode.computeIfAbsent(code, k -> new ArrayList<>()).add(item);
+                }
+                for (Map.Entry<String, List<JsonNode>> e : byCode.entrySet()) {
+                    String code = e.getKey();
+                    List<JsonNode> items = e.getValue();
+                    items.sort((a, b) -> {
+                        String na = a.path("NOTICE_DATE").asText("");
+                        String nb = b.path("NOTICE_DATE").asText("");
+                        return nb.compareTo(na);
+                    });
+                    for (JsonNode item : items) {
+                        String brief = item.path("PLAN_BRIEF").asText("");
+                        if (isReductionPlanFinishedNoticeTitle(brief)) {
+                            continue;
+                        }
+                        String endStr = item.path("PLAN_END_DATE").asText(null);
+                        if (endStr == null || endStr.length() < 10) {
+                            continue;
+                        }
+                        LocalDate endDate = LocalDate.parse(endStr.substring(0, 10));
+                        if (endDate.isBefore(today)) {
+                            continue;
+                        }
+                        String startStr = item.path("PLAN_START_DATE").asText("");
+                        LocalDate startDate = null;
+                        if (startStr != null && startStr.length() >= 10) {
+                            startDate = LocalDate.parse(startStr.substring(0, 10));
+                        }
+                        if (startDate != null && startDate.isAfter(today)) {
+                            continue;
+                        }
+                        Map<String, Object> detail = new LinkedHashMap<>();
+                        detail.put("noticeDate", item.path("NOTICE_DATE").asText(null));
+                        detail.put("planStartDate", startStr != null && startStr.length() >= 10
+                                ? startStr.substring(0, 10) : null);
+                        detail.put("planEndDate", endStr.substring(0, 10));
+                        detail.put("planBrief", brief.isEmpty() ? null : brief);
+                        detail.put("reductionType", "CURRENT");
+                        result.put(code, detail);
+                        break;
                     }
-                    LocalDate endDate = LocalDate.parse(endStr.substring(0, 10));
-                    if (endDate.isBefore(today)) {
-                        continue;
-                    }
-                    String startStr = item.path("PLAN_START_DATE").asText("");
-                    LocalDate startDate = null;
-                    if (startStr != null && startStr.length() >= 10) {
-                        startDate = LocalDate.parse(startStr.substring(0, 10));
-                    }
-                    if (startDate != null && startDate.isAfter(today)) {
-                        continue;
-                    }
-                    Map<String, Object> detail = new LinkedHashMap<>();
-                    detail.put("noticeDate", item.path("NOTICE_DATE").asText(null));
-                    detail.put("planStartDate", startStr != null && startStr.length() >= 10 ? startStr.substring(0, 10) : null);
-                    detail.put("planEndDate", endStr.substring(0, 10));
-                    detail.put("planBrief", item.path("PLAN_BRIEF").asText(null));
-                    result.put(code, detail);
                 }
             } catch (Exception e) {
                 LOG.warn("获取大股东减持计划失败: {}", e.getMessage());
@@ -806,49 +886,84 @@ public class FundFilterService {
             return out;
         }
 
-        /* 使用东方财富个股公告接口：筛选标题或分类含“减持”的公告，作为减持相关数据源。公告接口无计划开始/截止日，按惯例推算：开始日≈公告日+15交易日(约20自然日)，截止日=公告日+6个月。 */
+        /* 公告接口：标题/分类含「减持」。计划窗口：开始≈公告日+20 自然日，截止=公告日+6 个月。
+         * 锚点取首条非「减持完毕」类公告；展示用 reductionDetails 不含完毕类公告。 */
         out.put("sourceAvailable", Boolean.TRUE);
         for (String code : stockCodes) {
             List<Map<String, Object>> details = fetchReductionNoticesFromAnn(code);
-            if (!details.isEmpty()) {
-                Map<String, Object> first = details.get(0);
-                String noticeDateStr = (String) first.get("noticeDate");
-                LocalDate noticeDate = null;
-                if (noticeDateStr != null && noticeDateStr.length() >= 10) {
-                    try {
-                        noticeDate = LocalDate.parse(noticeDateStr.substring(0, 10));
-                    } catch (Exception ignored) {
-                    }
-                }
-                String planStartDate = null;
-                String planEndDate = null;
-                String reductionType = null;
-                boolean futureReduction = false;
-                if (noticeDate != null) {
-                    planStartDate = noticeDate.plusDays(20).toString();
-                    planEndDate = noticeDate.plusMonths(6).toString();
-                    LocalDate today = LocalDate.now();
-                    LocalDate start = LocalDate.parse(planStartDate);
-                    LocalDate end = LocalDate.parse(planEndDate);
-                    if (today.isBefore(start)) {
-                        reductionType = "FUTURE";
-                        futureReduction = true;
-                    } else if (today.isAfter(end)) {
-                        reductionType = "PASSED";
-                    } else {
-                        reductionType = "CURRENT";
-                    }
-                }
-                Map<String, Object> plan = new LinkedHashMap<>();
-                plan.put("noticeDate", first.get("noticeDate"));
-                plan.put("planStartDate", planStartDate);
-                plan.put("planEndDate", planEndDate);
-                plan.put("planBrief", first.get("title"));
-                plan.put("reductionType", reductionType);
-                plan.put("futureReduction", futureReduction);
-                plan.put("reductionDetails", details);
-                result.put(code, plan);
+            if (details.isEmpty()) {
+                continue;
             }
+            details.sort((a, b) -> {
+                String da = (String) a.get("noticeDate");
+                String db = (String) b.get("noticeDate");
+                if (da == null) {
+                    return 1;
+                }
+                if (db == null) {
+                    return -1;
+                }
+                return db.compareTo(da);
+            });
+            List<Map<String, Object>> detailsForDisplay = filterReductionDetailsExcludingFinished(details);
+            Map<String, Object> anchor = null;
+            for (Map<String, Object> row : details) {
+                Object tit = row.get("title");
+                String title = tit != null ? String.valueOf(tit) : "";
+                if (!isReductionPlanFinishedNoticeTitle(title)) {
+                    anchor = row;
+                    break;
+                }
+            }
+            if (anchor == null) {
+                Map<String, Object> latest = details.get(0);
+                Map<String, Object> planPassed = new LinkedHashMap<>();
+                planPassed.put("noticeDate", latest.get("noticeDate"));
+                planPassed.put("planStartDate", null);
+                planPassed.put("planEndDate", null);
+                planPassed.put("planBrief", latest.get("title"));
+                planPassed.put("reductionType", "PASSED");
+                planPassed.put("futureReduction", false);
+                planPassed.put("reductionDetails", detailsForDisplay);
+                result.put(code, planPassed);
+                continue;
+            }
+            String noticeDateStr = (String) anchor.get("noticeDate");
+            LocalDate noticeDate = null;
+            if (noticeDateStr != null && noticeDateStr.length() >= 10) {
+                try {
+                    noticeDate = LocalDate.parse(noticeDateStr.substring(0, 10));
+                } catch (Exception ignored) {
+                }
+            }
+            String planStartDate = null;
+            String planEndDate = null;
+            String reductionType = null;
+            boolean futureReduction = false;
+            if (noticeDate != null) {
+                planStartDate = noticeDate.plusDays(20).toString();
+                planEndDate = noticeDate.plusMonths(6).toString();
+                LocalDate today = LocalDate.now();
+                LocalDate start = LocalDate.parse(planStartDate);
+                LocalDate end = LocalDate.parse(planEndDate);
+                if (today.isBefore(start)) {
+                    reductionType = "FUTURE";
+                    futureReduction = true;
+                } else if (today.isAfter(end)) {
+                    reductionType = "PASSED";
+                } else {
+                    reductionType = "CURRENT";
+                }
+            }
+            Map<String, Object> plan = new LinkedHashMap<>();
+            plan.put("noticeDate", anchor.get("noticeDate"));
+            plan.put("planStartDate", planStartDate);
+            plan.put("planEndDate", planEndDate);
+            plan.put("planBrief", anchor.get("title"));
+            plan.put("reductionType", reductionType);
+            plan.put("futureReduction", futureReduction);
+            plan.put("reductionDetails", detailsForDisplay);
+            result.put(code, plan);
         }
         return out;
     }
@@ -1777,6 +1892,30 @@ public class FundFilterService {
     }
 
     /* ===================== 工具方法 ===================== */
+
+    /**
+     * 将输入规范为 6 位股票代码（供价格模拟等模块写入数据库）。
+     *
+     * @param code 原始代码，如 28、002028
+     * @return 6 位代码
+     */
+    public String normalizeStockCodeForApi(String code) {
+        return normalizeStockCode(code);
+    }
+
+    /**
+     * 是否为 A 股代码（规范化后 6 位且首位 0/3/6）。
+     *
+     * @param code 原始或已规范代码
+     * @return 是否有效
+     */
+    public boolean isValidAShareCode(String code) {
+        if (code == null || code.trim().isEmpty()) {
+            return false;
+        }
+        String six = normalizeStockCode(code.trim());
+        return isAShareCode(six);
+    }
 
     private boolean isAShareCode(String code) {
         if (code == null || code.length() != 6) {

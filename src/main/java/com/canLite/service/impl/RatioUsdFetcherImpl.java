@@ -61,7 +61,7 @@ public class RatioUsdFetcherImpl implements RatioUsdFetcher {
         String dateParam = date.format(YYYYMMDD);
 
         if (goldApiToken == null || goldApiToken.isEmpty()) {
-            return "未配置 app.goldapi.token，请在 application.yml 或环境变量 GOLDAPI_TOKEN 中设置";
+            return "未配置贵金属行情 token，请在 application.yml 或环境变量 GOLDAPI_TOKEN 中设置";
         }
 
         if (ratioUsdApiService.hasDataForDate(dateParam)) {
@@ -84,10 +84,11 @@ public class RatioUsdFetcherImpl implements RatioUsdFetcher {
                     if (jisu != null && jisu[0] != null && jisu[1] != null && jisu[1].compareTo(BigDecimal.ZERO) > 0) {
                         ratioUsdApiService.saveByDate(jisu[0], jisu[1], dateParam, "jisuapi");
                         LOG.info("美元计价金银比已保存(极速数据降级): {} 金={} 银={} USD/oz", dateParam, jisu[0], jisu[1]);
-                        return "已保存 " + dateParam + " (极速数据)";
+                        return "已保存 " + dateParam + " (备用行情)";
                     }
                 }
-                return "GoldAPI 无数据" + (date.equals(LocalDate.now()) ? "，极速数据不可用或未配置 app.jisuapi.appkey" : "，极速数据仅支持当日");
+                return "主行情接口无数据" + (date.equals(LocalDate.now())
+                        ? "，备用行情不可用或未配置备用接口密钥" : "，备用行情仅支持当日");
             }
             BigDecimal silver = fetchPriceFromGoldApi(XAG_USD, dateParam);
             if (silver != null && silver.compareTo(BigDecimal.ZERO) > 0) {
@@ -100,10 +101,11 @@ public class RatioUsdFetcherImpl implements RatioUsdFetcher {
                 if (jisu != null && jisu[0] != null && jisu[1] != null && jisu[1].compareTo(BigDecimal.ZERO) > 0) {
                     ratioUsdApiService.saveByDate(jisu[0], jisu[1], dateParam, "jisuapi");
                     LOG.info("美元计价金银比已保存(极速数据降级): {} 金={} 银={} USD/oz", dateParam, jisu[0], jisu[1]);
-                    return "已保存 " + dateParam + " (极速数据)";
+                    return "已保存 " + dateParam + " (备用行情)";
                 }
             }
-            return "GoldAPI 无数据" + (date.equals(LocalDate.now()) ? "，极速数据不可用或未配置 app.jisuapi.appkey" : "，极速数据仅支持当日");
+            return "主行情接口无数据" + (date.equals(LocalDate.now())
+                    ? "，备用行情不可用或未配置备用接口密钥" : "，备用行情仅支持当日");
         } catch (Exception e) {
             LOG.warn("美元计价金银比拉取失败: {}", e.getMessage());
             return "拉取失败: " + e.getMessage();

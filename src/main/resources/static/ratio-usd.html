@@ -81,7 +81,7 @@
 <body>
   <div class="container">
     <h1>美元计价金银比</h1>
-    <p class="subtitle">Gold / Silver Ratio (USD) · 数据来源：GoldAPI · 美元/盎司</p>
+    <p class="subtitle">Gold / Silver Ratio (USD) · 美元/盎司 · 行情接口数据</p>
 
     <div class="card feed">
       <h2>每日金银比</h2>
@@ -227,7 +227,7 @@
               var gold = formatNum(row.goldPrice);
               var silver = formatNum(row.silverPrice);
               var ratio = formatNum(row.ratio);
-              var src = row.dataSource === 'jisuapi' ? '极速数据' : (row.dataSource === 'manual' ? '手动' : 'GoldAPI');
+              var src = row.dataSource === 'jisuapi' ? '备用行情' : (row.dataSource === 'manual' ? '手动' : '主行情');
               return '<tr><td>' + date + '</td><td class="value-gold">' + gold + '</td><td class="value-silver">' + silver + '</td><td>' + ratio + '</td><td>' + src + '</td></tr>';
             }).join('');
             updateChart(list);

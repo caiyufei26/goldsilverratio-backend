@@ -152,14 +152,17 @@ public class FundFilterService {
      * n年：有年报展示年报，无年报展示预增数据，都没有展示 --。n-1年同理。n-2年仅展示年报。
      * 原版：n、n-1、n-2 均有年报且三年每股收益增长率均 &gt; 25%。
      * 放宽：n 无任何数据，n-1、n-2 有年报且两年增长率均 &gt; 25%。
-     * 业绩预增：预增(净利润同比)&gt;80%、n-1年增长率&gt;0%、n年营收同比&gt;20%；可展示预告明细。
+     * 业绩预增：预增(净利润同比)&gt;A 阈值（默认 80%）、n-1年增长率&gt;0%、n年营收同比&gt;20%；可展示预告明细。
+     * 高速增长：n 年增长率&gt;A 阈值（默认 80%），与业绩预增共用同一 A 阈值参数。
      *
-     * @param fundCode 基金代码
+     * @param fundCode   基金代码
+     * @param aThreshold A 规则中的增速/预增同比阈值(%)，默认 80
      * @return 包含 matched / allStocks / matchType / forecastDetail(业绩预增时) 等
      */
-    public Map<String, Object> queryAndFilterA(String fundCode) {
+    public Map<String, Object> queryAndFilterA(String fundCode, double aThreshold) {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("fundCode", fundCode);
+        result.put("aThreshold", aThreshold);
 
         List<Map<String, Object>> holdings = fetchFundHoldings(fundCode);
         if (holdings.isEmpty()) {
@@ -209,7 +212,7 @@ public class FundFilterService {
             }
             Map<String, Object> row = buildAnnualRow(code, holding.get("stockName"), holding.get("weight"),
                     financialMap.get(code), profitMap.get(code), forecastN.get(code), forecastN1.get(code), n, n1, n2, n3,
-                    revenueYoyFromReport != null ? revenueYoyFromReport.get(code) : null);
+                    revenueYoyFromReport != null ? revenueYoyFromReport.get(code) : null, aThreshold);
             all.add(row);
             if (row.get("matchType") != null) {
                 matched.add(row);
@@ -1211,13 +1214,16 @@ public class FundFilterService {
 
     /**
      * 按 n、n-1、n-2 规则构建单只股票的 A 行数据并判定 原版/高速增长/放宽/业绩预增。
-     * @param revenueYoyFromReport 该股票按业绩报表最新季度与去年同期营业收入计算的同比(%)，用于业绩预增中「n年营收同比>20%」判定
+     *
+     * @param revenueYoyFromReport  该股票按业绩报表最新季度与去年同期营业收入计算的同比(%)，用于业绩预增中「n年营收同比>20%」判定
+     * @param aThresholdPercent   高速增长与业绩预增中的增速/预增同比阈值(%)，与页面 A 阈值一致
      */
     private Map<String, Object> buildAnnualRow(String code, Object stockName, Object weight,
                                                TreeMap<String, BigDecimal> epsMap, TreeMap<String, BigDecimal> profitMap,
                                                Map<String, Object> forecastN, Map<String, Object> forecastN1,
                                                int n, int n1, int n2, int n3,
-                                               Double revenueYoyFromReport) {
+                                               Double revenueYoyFromReport,
+                                               double aThresholdPercent) {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("stockCode", code);
         row.put("stockName", stockName);
@@ -1313,17 +1319,17 @@ public class FundFilterService {
                 && growthN.doubleValue() > 25 && growthN1.doubleValue() > 25 && growthN2.doubleValue() > 25) {
             matchType = "原版";
         } else if (hasAnnualN && hasAnnualN1 && hasAnnualN2 && growthN != null && growthN1 != null
-                && growthN.doubleValue() > 80 && growthN1.doubleValue() > 0
+                && growthN.doubleValue() > aThresholdPercent && growthN1.doubleValue() > 0
                 && revenueYoyFromReport != null && revenueYoyFromReport > 20) {
             matchType = "高速增长";
         } else if (!hasAnnualN && hasAnnualN1 && hasAnnualN2 && growthN1 != null && growthN2 != null
                 && growthN1.doubleValue() > 25 && growthN2.doubleValue() > 25) {
             matchType = "放宽";
         } else {
-            // 业绩预增：预增(净利润同比)>80%、n-1年增长率>0%、n年营收同比>20%（营收同比取业绩报表最新季度与去年同期营业收入计算）
+            // 业绩预增：预增(净利润同比)>A 阈值、n-1年增长率>0%、n年营收同比>20%
             if (sourceN.equals("forecast") && forecastN != null) {
                 Double py = forecastN.get("profitYoy") != null ? ((Number) forecastN.get("profitYoy")).doubleValue() : null;
-                if (py != null && py > 80 && growthN1 != null && growthN1.doubleValue() > 0
+                if (py != null && py > aThresholdPercent && growthN1 != null && growthN1.doubleValue() > 0
                         && revenueYoyFromReport != null && revenueYoyFromReport > 20) {
                     matchType = "业绩预增";
                     forecastDetail = forecastN.get("content");
@@ -1331,7 +1337,7 @@ public class FundFilterService {
             }
             if (matchType == null && sourceN.equals("none") && sourceN1.equals("forecast") && forecastN1 != null) {
                 Double py = forecastN1.get("profitYoy") != null ? ((Number) forecastN1.get("profitYoy")).doubleValue() : null;
-                if (py != null && py > 80 && growthN2 != null && growthN2.doubleValue() > 0
+                if (py != null && py > aThresholdPercent && growthN2 != null && growthN2.doubleValue() > 0
                         && revenueYoyFromReport != null && revenueYoyFromReport > 20) {
                     matchType = "业绩预增";
                     forecastDetail = forecastN1.get("content");

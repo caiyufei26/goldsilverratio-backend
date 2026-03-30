@@ -52,19 +52,22 @@ public class FundFilterApiController {
     }
 
     /**
-     * A - 年度每股收益：近三年 > 25%（原版）或 去年>10% 且 今年>50%（放宽）。
+     * A - 年度每股收益：近三年 &gt; 25%（原版）等；高速增长/业绩预增中增速阈值由 aThreshold(%) 指定，默认 80。
      *
-     * @param code 基金代码
+     * @param code        基金代码
+     * @param aThreshold  A 规则阈值(%)，默认 80
      * @return 符合 A 的股票及原版/放宽标记
      */
     @GetMapping("/query-a")
-    public Result<Map<String, Object>> queryA(@RequestParam("code") String code) {
+    public Result<Map<String, Object>> queryA(
+            @RequestParam("code") String code,
+            @RequestParam(value = "aThreshold", defaultValue = "80") double aThreshold) {
         if (code == null || code.trim().isEmpty()) {
             return Result.fail(400, "基金代码不能为空");
         }
         code = code.trim();
         try {
-            Map<String, Object> data = fundFilterService.queryAndFilterA(code);
+            Map<String, Object> data = fundFilterService.queryAndFilterA(code, aThreshold);
             if (data.containsKey("error")) {
                 return Result.fail(400, (String) data.get("error"));
             }

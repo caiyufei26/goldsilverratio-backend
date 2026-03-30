@@ -720,7 +720,7 @@ public class FundFilterService {
     }
 
     /**
-     * 公告标题或报表 PLAN_BRIEF 是否表示减持计划已实施完毕/终止，不作为「正在/未来减持」依据。
+     * 公告标题或报表 PLAN_BRIEF 是否表示减持已结束/结果披露（完毕、结果公告等），不作为「正在/未来减持」锚点依据。
      */
     private boolean isReductionPlanFinishedNoticeTitle(String titleOrBrief) {
         if (titleOrBrief == null || titleOrBrief.isEmpty()) {
@@ -752,6 +752,19 @@ public class FundFilterService {
             return true;
         }
         if (t.contains("未减持") && t.contains("完毕")) {
+            return true;
+        }
+        /* 减持结果类：如「减持股份结果公告」——披露结果，非进行中/计划 */
+        if (t.contains("减持结果")) {
+            return true;
+        }
+        if (t.contains("减持股份结果")) {
+            return true;
+        }
+        if (t.contains("结果公告") && t.contains("减持")) {
+            return true;
+        }
+        if (t.contains("实施情况暨结果") || t.contains("实施结果")) {
             return true;
         }
         return false;

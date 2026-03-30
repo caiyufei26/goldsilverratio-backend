@@ -222,8 +222,10 @@ public class FundFilterService {
         matched.sort((a, b) -> {
             String ma = (String) a.get("matchType");
             String mb = (String) b.get("matchType");
-            int oa = "原版".equals(ma) ? 0 : "高速增长".equals(ma) ? 1 : "放宽".equals(ma) ? 2 : "业绩预增".equals(ma) ? 3 : 4;
-            int ob = "原版".equals(mb) ? 0 : "高速增长".equals(mb) ? 1 : "放宽".equals(mb) ? 2 : "业绩预增".equals(mb) ? 3 : 4;
+            int oa = "原版".equals(ma) ? 0 : "高速增长".equals(ma) ? 1 : "放宽".equals(ma) ? 2
+                    : "业绩预增".equals(ma) ? 3 : "今年A满足".equals(ma) ? 4 : 5;
+            int ob = "原版".equals(mb) ? 0 : "高速增长".equals(mb) ? 1 : "放宽".equals(mb) ? 2
+                    : "业绩预增".equals(mb) ? 3 : "今年A满足".equals(mb) ? 4 : 5;
             return Integer.compare(oa, ob);
         });
 
@@ -1343,6 +1345,11 @@ public class FundFilterService {
                     forecastDetail = forecastN1.get("content");
                 }
             }
+        }
+        // 其他类型均未命中时放宽：仅要求当年相对去年每股收益同比增速 > A 阈值
+        if (matchType == null && hasAnnualN && growthN != null
+                && growthN.doubleValue() > aThresholdPercent) {
+            matchType = "今年A满足";
         }
         if (forecastDetail != null) {
             row.put("forecastDetail", forecastDetail);

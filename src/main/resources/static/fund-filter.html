@@ -123,6 +123,7 @@
     .tag-fang { color: #fbbf24; font-weight: 600; }
     .tag-yuce { color: #60a5fa; font-weight: 600; }
     .tag-gaosu { color: #a78bfa; font-weight: 600; }
+    .tag-jinnian { color: #94a3b8; font-weight: 600; }
     .link-detail { color: #60a5fa; margin-left: 6px; cursor: pointer; text-decoration: none; }
     .link-detail:hover { text-decoration: underline; }
     #reductionTable th:last-child,
@@ -209,7 +210,7 @@
     <header class="page-header">
       <a class="back-link" href="/index.html">&larr; 返回首页</a>
       <h1>基金持仓筛选</h1>
-      <p class="hint">输入基金代码，一次查询同时展示：C（每股收益同比 &gt; C 阈值）、A（年度每股收益 原版/高速增长/放宽/业绩预增，其中高速增长与业绩预增同比阈值用 A 阈值）、S（回购 · 今日在回购期间内）、I（机构认同度 · 正在或未来减持，不含减持完毕）满足条件的股票。</p>
+      <p class="hint">输入基金代码，一次查询同时展示：C（每股收益同比 &gt; C 阈值）、A（年度每股收益 原版/高速增长/放宽/业绩预增/今年A满足，其中高速增长、业绩预增与今年A满足同比阈值用 A 阈值）、S（回购 · 今日在回购期间内）、I（机构认同度 · 正在或未来减持，不含减持完毕）满足条件的股票。</p>
     </header>
 
     <div class="card query-card">
@@ -271,7 +272,7 @@
       </div>
 
       <div class="card">
-        <h2 class="section-title-card" style="color:#34d399;">A - 年度每股收益 · 满足条件的股票（原版 / 高速增长 / 放宽 / 业绩预增）</h2>
+        <h2 class="section-title-card" style="color:#34d399;">A - 年度每股收益 · 满足条件的股票</h2>
         <div class="table-wrap">
           <table>
             <thead>
@@ -553,6 +554,7 @@
         if (matchType === '高速增长') return '<span class="tag-gaosu">高速增长</span>';
         if (matchType === '放宽') return '<span class="tag-fang">放宽</span>';
         if (matchType === '业绩预增') return '<span class="tag-yuce">业绩预增</span>';
+        if (matchType === '今年A满足') return '<span class="tag-jinnian">今年A满足</span>';
         return matchType;
       }
 

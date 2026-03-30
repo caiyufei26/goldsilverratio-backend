@@ -79,6 +79,7 @@
     .tag-fang { color: #fbbf24; font-weight: 600; }
     .tag-yuce { color: #60a5fa; font-weight: 600; }
     .tag-gaosu { color: #a78bfa; font-weight: 600; }
+    .tag-jinnian { color: #94a3b8; font-weight: 600; }
     .link-detail { color: #60a5fa; margin-left: 6px; cursor: pointer; text-decoration: none; }
     .link-detail:hover { text-decoration: underline; }
     .modal-overlay { position: fixed; left: 0; top: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 1000; display: none; justify-content: center; align-items: center; padding: 20px; }
@@ -108,7 +109,7 @@
   <div class="container">
     <a class="back-link" href="/index.html">&larr; 返回首页</a>
     <h1>CAN SLIM A - 年度每股收益</h1>
-    <p class="hint">输入基金代码，获取成分股。原版/高速增长/放宽：年度每股收益规则；业绩预增：预增(净利润同比)&gt;80%、n-1年增长率&gt;0%、n年营收同比&gt;20%。高速增长：三年年报、今年增长率&gt;80%、去年&gt;0%、营收同比&gt;20%。</p>
+    <p class="hint">输入基金代码，获取成分股。原版/高速增长/放宽：年度每股收益规则；业绩预增：预增(净利润同比)&gt;A 阈值、n-1年增长率&gt;0%、n年营收同比&gt;20%。高速增长：三年年报、今年增长率&gt;A 阈值、去年&gt;0%、营收同比&gt;20%。今年A满足：其他类型均未命中时，仅今年相对去年每股收益同比增速&gt;A 阈值。</p>
 
     <div class="card">
       <div class="form-row">
@@ -223,6 +224,7 @@
         if (matchType === '高速增长') return '<span class="tag-gaosu">高速增长</span>';
         if (matchType === '放宽') return '<span class="tag-fang">放宽</span>';
         if (matchType === '业绩预增') return '<span class="tag-yuce">业绩预增</span>';
+        if (matchType === '今年A满足') return '<span class="tag-jinnian">今年A满足</span>';
         return matchType;
       }
 

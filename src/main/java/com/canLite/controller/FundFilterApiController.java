@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 基金持仓筛选 API：C（每股收益同比）、A（年度每股收益）。
+ * 基金筛选 API：C（每股收益同比）、A（年度每股收益）。
  */
 @RestController
 @RequestMapping("/api/fund-filter")
